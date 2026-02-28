@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Spazio AR">
@@ -14,635 +14,856 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --accent:#0A84FF;
-  --ar:#5AC8FA;
-  --ar-dim:rgba(90,200,250,0.15);
-  --safe-bottom:env(safe-area-inset-bottom,0px);
-  --safe-top:env(safe-area-inset-top,44px);
+  --A:#0A84FF;            /* accent blue */
+  --AR:#5AC8FA;           /* AR wire blue */
+  --AR2:rgba(90,200,250,.18);
+  --SB:env(safe-area-inset-bottom,0px);
+  --ST:env(safe-area-inset-top,44px);
 }
 html,body{width:100%;height:100%;overflow:hidden;background:#000;
-  font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;
-  touch-action:none;user-select:none}
+  font-family:'Inter',-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;touch-action:none;user-select:none}
 
-/* ── LAYERS ── */
+/* ── VIDEO + CANVAS ── */
 #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-#cvDetect{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+#cvD{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 
-/* ── NAVBAR ── */
-#navbar{position:fixed;top:0;left:0;right:0;z-index:90;
-  padding:calc(var(--safe-top) + 8px) 16px 14px;
-  background:linear-gradient(180deg,rgba(0,0,0,0.7) 0%,transparent 100%);
+/* ── NAV ── */
+#nav{position:fixed;top:0;left:0;right:0;z-index:90;
+  padding:calc(var(--ST) + 8px) 16px 14px;
+  background:linear-gradient(180deg,rgba(0,0,0,.72) 0%,transparent 100%);
   display:flex;align-items:center;justify-content:space-between;gap:12px}
-#navBack{display:flex;align-items:center;gap:4px;background:none;border:none;
+#navBack{display:flex;align-items:center;gap:5px;background:none;border:none;
   cursor:pointer;color:#fff;font-size:17px;font-weight:400;
   font-family:'Inter',sans-serif;padding:6px 0;
   -webkit-tap-highlight-color:transparent;flex-shrink:0}
-#navBack svg{width:9px;height:15px;margin-right:2px}
-#navBack:active{opacity:.55}
-#navCenter{text-align:center;flex:1}
-#navCenter h1{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.3px}
-#navCenter p{font-size:12px;color:rgba(255,255,255,.6);margin-top:1px}
+#navBack svg{width:9px;height:15px}
+#navBack:active{opacity:.5}
+#navC{text-align:center;flex:1}
+#navC h1{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.3px}
+#navC p{font-size:12px;color:rgba(255,255,255,.6);margin-top:1px}
 #navBadge{flex-shrink:0;background:rgba(255,255,255,.15);
-  border:1px solid rgba(255,255,255,.3);
+  border:1px solid rgba(255,255,255,.28);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   color:#fff;font-size:11px;font-weight:600;
   padding:5px 11px;border-radius:100px;letter-spacing:.5px}
 
-/* ── BOTTOM BAR ── */
-#bottomBar{position:fixed;bottom:0;left:0;right:0;z-index:90;
-  padding:0 16px calc(var(--safe-bottom) + 22px);
+/* ── STATUS CHIP ── */
+#chip{position:fixed;top:calc(var(--ST) + 64px);
+  left:50%;transform:translateX(-50%);z-index:89;white-space:nowrap;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.22);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:100px;padding:6px 16px;
+  font-size:12px;font-weight:500;color:rgba(255,255,255,.85);
+  pointer-events:none;transition:opacity .5s}
+
+/* ── BOTTOM ── */
+#bot{position:fixed;bottom:0;left:0;right:0;z-index:90;
+  padding:0 16px calc(var(--SB) + 20px);
   display:flex;flex-direction:column;align-items:center;gap:8px}
-#pillList{display:flex;flex-direction:column;align-items:center;gap:7px;
-  width:100%;max-height:200px;overflow-y:auto;
-  -ms-overflow-style:none;scrollbar-width:none;padding:2px 0}
-#pillList::-webkit-scrollbar{display:none}
-.pill{display:flex;align-items:center;gap:10px;padding:12px 18px;
-  background:rgba(255,255,255,.20);
-  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
-  border:1px solid rgba(255,255,255,.35);
-  border-radius:100px;
-  box-shadow:0 6px 24px rgba(0,0,0,.20),0 1px 0 rgba(255,255,255,.4) inset;
-  cursor:pointer;color:#fff;font-size:15px;font-weight:500;
+
+/* ── SINGLE PILL (un oggetto alla volta) ── */
+#mainPill{
+  display:none;align-items:center;gap:12px;
+  padding:14px 22px;
+  background:var(--A);                        /* BLU SOLIDO */
+  border:none;border-radius:100px;
+  box-shadow:0 6px 28px rgba(10,132,255,.45),0 1px 0 rgba(255,255,255,.25) inset;
+  cursor:pointer;color:#fff;font-size:16px;font-weight:600;
   max-width:380px;width:100%;
   -webkit-tap-highlight-color:transparent;
-  animation:pillIn .35s cubic-bezier(.34,1.56,.64,1) both}
-.pill:active{opacity:.75}
-.pill.selected{background:rgba(10,132,255,.28);border-color:rgba(10,132,255,.55)}
-.pill-icon{font-size:18px}
-.pill-label{flex:1}
-.pill-3d{font-size:10px;font-weight:700;letter-spacing:.8px;
-  background:rgba(90,200,250,.22);border:1px solid rgba(90,200,250,.5);
-  color:var(--ar);padding:3px 8px;border-radius:100px;white-space:nowrap}
-.pill-conf{font-size:11px;color:rgba(255,255,255,.45);font-weight:400}
-@keyframes pillIn{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
+  animation:pIn .38s cubic-bezier(.34,1.56,.64,1) both}
+#mainPill.visible{display:flex}
+#mainPill:active{opacity:.82;transform:scale(.97)}
+#pillIcon{font-size:20px}
+#pillLabel{flex:1;letter-spacing:-.2px}
+#pill3d{font-size:10px;font-weight:700;letter-spacing:.8px;
+  background:rgba(255,255,255,.22);
+  border:1px solid rgba(255,255,255,.35);
+  color:#fff;padding:3px 9px;border-radius:100px;white-space:nowrap}
+#pillConf{font-size:12px;color:rgba(255,255,255,.65);font-weight:400}
 
-#hintCard{background:rgba(255,255,255,.15);
-  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
-  border:1px solid rgba(255,255,255,.28);
-  border-radius:18px;padding:12px 18px;text-align:center;
+@keyframes pIn{from{opacity:0;transform:translateY(16px) scale(.88)}to{opacity:1;transform:none}}
+
+/* secondary smaller pills (altri oggetti) */
+#secPills{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;
   max-width:380px;width:100%}
-#hintCard h3{font-size:14px;font-weight:600;color:#fff;margin-bottom:2px}
-#hintCard p{font-size:11px;color:rgba(255,255,255,.55);line-height:1.4}
+.spill{display:flex;align-items:center;gap:6px;
+  padding:8px 14px;
+  background:rgba(255,255,255,.18);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,.32);
+  border-radius:100px;cursor:pointer;color:#fff;
+  font-size:13px;font-weight:500;
+  -webkit-tap-highlight-color:transparent;
+  animation:pIn .3s cubic-bezier(.34,1.56,.64,1) both}
+.spill:active{opacity:.7}
 
-/* ── VIEWER PANEL ── */
+/* ── HINT ── */
+#hint{background:rgba(0,0,0,.45);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:16px;padding:10px 18px;text-align:center;
+  max-width:380px;width:100%}
+#hint h3{font-size:13px;font-weight:600;color:#fff;margin-bottom:1px}
+#hint p{font-size:11px;color:rgba(255,255,255,.5);line-height:1.4}
+
+/* ── VIEWER ── */
 #viewer{position:fixed;inset:0;z-index:150;
   display:flex;align-items:flex-end;justify-content:center;
   opacity:0;pointer-events:none;transition:opacity .22s}
 #viewer.open{opacity:1;pointer-events:all}
-#viewerScrim{position:absolute;inset:0;
-  background:rgba(0,0,0,.32);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-#viewerPanel{position:relative;z-index:1;
-  width:100%;max-width:560px;
-  background:#fff;
+#vScrim{position:absolute;inset:0;
+  background:rgba(0,0,0,.35);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+#vPanel{position:relative;z-index:1;
+  width:100%;max-width:560px;background:#fff;
   border-radius:28px 28px 0 0;
-  box-shadow:0 -4px 60px rgba(0,0,0,.28);
-  padding-bottom:calc(var(--safe-bottom) + 20px);
+  box-shadow:0 -4px 60px rgba(0,0,0,.3);
+  padding-bottom:calc(var(--SB) + 20px);
   transform:translateY(110%);
   transition:transform .42s cubic-bezier(.34,1.06,.64,1);
   max-height:91vh;display:flex;flex-direction:column;overflow:hidden}
-#viewer.open #viewerPanel{transform:translateY(0)}
-.panel-handle{width:36px;height:4px;border-radius:2px;
-  background:rgba(0,0,0,.13);margin:12px auto 0;flex-shrink:0}
-#panelClose{position:absolute;top:14px;right:16px;
-  width:28px;height:28px;border-radius:50%;
+#viewer.open #vPanel{transform:translateY(0)}
+.vhandle{width:36px;height:4px;border-radius:2px;
+  background:rgba(0,0,0,.12);margin:12px auto 0;flex-shrink:0}
+#vClose{position:absolute;top:14px;right:16px;
+  width:30px;height:30px;border-radius:50%;
   background:#f0f0f5;border:none;
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;color:#666;font-size:12px;font-weight:700;
-  -webkit-tap-highlight-color:transparent}
-#panelClose:active{background:#e0e0ea}
+  cursor:pointer;color:#555;font-size:13px;font-weight:700;
+  -webkit-tap-highlight-color:transparent;transition:background .15s}
+#vClose:active{background:#e2e2ea}
 
 /* ── 3D AREA ── */
-#threeWrap{width:100%;height:260px;flex-shrink:0;
-  background:linear-gradient(160deg,#e8f4ff 0%,#eef8ff 50%,#e4f0fb 100%);
-  border-bottom:1px solid rgba(0,0,0,.06);
-  position:relative;overflow:hidden;cursor:grab}
-#threeWrap:active{cursor:grabbing}
-#threeCanvas{width:100%;height:100%;display:block}
+#tWrap{width:100%;height:260px;flex-shrink:0;
+  background:linear-gradient(160deg,#e6f3ff 0%,#eef8ff 50%,#e2f0fb 100%);
+  border-bottom:1px solid rgba(0,0,0,.07);
+  position:relative;overflow:hidden;cursor:grab;touch-action:none}
+#tWrap:active{cursor:grabbing}
+#tCanvas{width:100%;height:100%;display:block}
+
+/* AR hint inside 3D */
 #arHint{position:absolute;top:10px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.42);border-radius:100px;
-  padding:4px 14px;font-size:11px;color:rgba(255,255,255,.88);
-  white-space:nowrap;pointer-events:none;transition:opacity .5s}
-#arCtrls{position:absolute;bottom:10px;right:10px;display:flex;gap:6px}
-.actrl{width:34px;height:34px;border-radius:50%;
-  background:rgba(255,255,255,.88);border:1px solid rgba(0,0,0,.10);
-  box-shadow:0 2px 8px rgba(0,0,0,.12);
+  background:rgba(0,0,0,.45);border-radius:100px;
+  padding:4px 14px;font-size:11px;color:rgba(255,255,255,.9);
+  white-space:nowrap;pointer-events:none;transition:opacity .6s}
+
+/* Controls BLUE */
+#arCtrl{position:absolute;bottom:10px;right:10px;display:flex;gap:7px}
+.ac{width:36px;height:36px;border-radius:50%;
+  background:var(--A);                        /* BLU */
+  border:none;
+  box-shadow:0 2px 12px rgba(10,132,255,.45);
   display:flex;align-items:center;justify-content:center;
-  font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.actrl:active{background:#e8e8ee}
-/* dim labels */
-.dlabel{position:absolute;pointer-events:none;
-  background:rgba(90,200,250,.15);border:1px solid rgba(90,200,250,.45);
-  border-radius:6px;padding:2px 8px;
-  font-size:11px;font-weight:600;color:#006699;white-space:nowrap}
+  font-size:15px;cursor:pointer;color:#fff;
+  -webkit-tap-highlight-color:transparent;transition:opacity .15s}
+.ac:active{opacity:.7}
+
+/* Dimension labels on 3D */
+.dl{position:absolute;pointer-events:none;
+  background:rgba(90,200,250,.18);border:1px solid rgba(90,200,250,.5);
+  border-radius:6px;padding:2px 9px;
+  font-size:11px;font-weight:600;color:#0066aa;white-space:nowrap;
+  font-family:'Georgia',serif}
 
 /* ── SHEET ── */
-#sheetScroll{flex:1;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
-#sheetScroll::-webkit-scrollbar{display:none}
+#sScroll{flex:1;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
+#sScroll::-webkit-scrollbar{display:none}
 .sbody{padding:18px 22px 0}
-.stag{display:inline-flex;align-items:center;
+.stag{display:inline-flex;
   font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--accent);background:rgba(10,132,255,.09);
+  color:var(--A);background:rgba(10,132,255,.09);
   border:1px solid rgba(10,132,255,.20);
   border-radius:100px;padding:4px 10px;margin-bottom:10px}
-.sname{font-size:28px;font-weight:700;color:#0a0a0f;letter-spacing:-.7px;
+.sname{font-size:28px;font-weight:700;color:#080810;letter-spacing:-.7px;
   margin-bottom:3px;line-height:1.1}
-.stagline{font-size:13px;color:#5a5a72;margin-bottom:14px}
+.stag2{font-size:13px;color:#5a5a72;margin-bottom:14px}
 .cbadge{display:inline-flex;align-items:center;gap:5px;
-  background:rgba(48,209,88,.09);border:1px solid rgba(48,209,88,.25);
+  background:rgba(48,209,88,.09);border:1px solid rgba(48,209,88,.22);
   border-radius:100px;padding:4px 10px;margin-bottom:14px;
   font-size:12px;color:#1a8c3a;font-weight:500}
 .cdot{width:6px;height:6px;border-radius:50%;background:#30d158}
 .fblock{background:#f5f5f8;border:1px solid rgba(0,0,0,.06);
   border-radius:18px;padding:20px;text-align:center;margin-bottom:16px}
-.fmain{font-size:32px;font-weight:300;color:#0a0a0f;letter-spacing:-.5px;
+.fmain{font-size:30px;font-weight:300;color:#080810;letter-spacing:-.5px;
   font-family:'Georgia',serif;line-height:1.3;margin-bottom:7px}
 .falt{font-size:14px;color:#5a5a72;font-family:'Georgia',serif}
 .sdiv{height:1px;background:rgba(0,0,0,.07);margin:0 0 14px}
-.dtitle{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+.sttl{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
   color:#9898aa;margin-bottom:7px}
-.sdesc{font-size:14px;color:#5a5a72;line-height:1.75;margin-bottom:16px}
-.ffact{background:linear-gradient(135deg,#fff8e6,#fff3d4);
+.sdesc{font-size:14px;color:#4a4a62;line-height:1.78;margin-bottom:16px}
+.sfact{background:linear-gradient(135deg,#fff8e6,#fff3d4);
   border:1px solid rgba(255,180,0,.2);
-  border-radius:14px;padding:13px 15px;margin-bottom:16px;
-  display:flex;gap:10px}
-.fftext{font-size:13px;color:#7a5c00;line-height:1.6}
-.vtitle{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-  color:#9898aa;margin-bottom:9px}
+  border-radius:14px;padding:13px 15px;margin-bottom:16px}
+.sftext{font-size:13px;color:#7a5c00;line-height:1.65}
 .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.vitem{background:#f5f5f8;border:1px solid rgba(0,0,0,.06);border-radius:13px;padding:11px 14px}
-.vsym{font-size:17px;font-weight:500;color:#0a0a0f;font-family:'Georgia',serif;margin-bottom:3px}
-.vname{font-size:11px;color:#9898aa;line-height:1.3}
+.vi{background:#f5f5f8;border:1px solid rgba(0,0,0,.06);border-radius:13px;padding:11px 14px}
+.vs{font-size:17px;font-weight:500;color:#080810;font-family:'Georgia',serif;margin-bottom:3px}
+.vn{font-size:11px;color:#9898aa;line-height:1.3}
 .lbtn{display:flex;align-items:center;justify-content:center;gap:8px;
-  padding:15px;border-radius:15px;background:var(--accent);
+  padding:15px;border-radius:15px;background:var(--A);   /* BLU */
   color:#fff;font-size:15px;font-weight:600;cursor:pointer;
-  box-shadow:0 4px 20px rgba(10,132,255,.3);
+  box-shadow:0 4px 20px rgba(10,132,255,.35);
   -webkit-tap-highlight-color:transparent;transition:opacity .15s}
-.lbtn:active{opacity:.82}
+.lbtn:active{opacity:.8}
 
 /* ── WELCOME ── */
-#permScreen{position:fixed;inset:0;z-index:200;
+#perm{position:fixed;inset:0;z-index:200;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:18px;padding:40px;
-  background:linear-gradient(160deg,#111827 0%,#1f2937 60%,#111827 100%)}
-#permScreen.gone{display:none}
-.picon{width:80px;height:80px;background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.22);border-radius:22px;
-  display:flex;align-items:center;justify-content:center;font-size:40px}
-.ptitle{font-size:30px;font-weight:700;color:#fff;letter-spacing:-.8px}
-.psub{font-size:15px;color:rgba(255,255,255,.55);text-align:center;
-  line-height:1.65;max-width:290px}
-#startBtn{padding:15px 44px;background:var(--accent);color:#fff;
+  gap:20px;padding:40px;
+  background:linear-gradient(160deg,#0f1923 0%,#1a2a3a 60%,#0f1923 100%)}
+#perm.gone{display:none}
+.pico{width:82px;height:82px;background:rgba(10,132,255,.18);
+  border:1px solid rgba(10,132,255,.4);border-radius:24px;
+  display:flex;align-items:center;justify-content:center;font-size:42px}
+.ptit{font-size:32px;font-weight:700;color:#fff;letter-spacing:-.8px}
+.psub{font-size:15px;color:rgba(255,255,255,.5);text-align:center;
+  line-height:1.65;max-width:280px}
+#startBtn{padding:15px 48px;background:var(--A);color:#fff;
   border:none;border-radius:100px;font-family:'Inter',sans-serif;
   font-size:16px;font-weight:600;cursor:pointer;
-  box-shadow:0 4px 28px rgba(10,132,255,.45);
+  box-shadow:0 4px 30px rgba(10,132,255,.5);
   -webkit-tap-highlight-color:transparent;transition:transform .15s,opacity .15s}
 #startBtn:active{transform:scale(.96);opacity:.85}
 
 /* ── LOADING ── */
-#loadBar{position:fixed;top:0;left:0;right:0;height:3px;
+#lbar{position:fixed;top:0;left:0;right:0;height:3px;
   background:rgba(255,255,255,.10);z-index:300;display:none}
-#loadBar.on{display:block}
-#loadFill{height:100%;background:linear-gradient(90deg,var(--accent),#30d158);
+#lbar.on{display:block}
+#lfill{height:100%;background:linear-gradient(90deg,var(--A),#30d158);
   width:0%;transition:width .5s cubic-bezier(.4,0,.2,1)}
-#statusChip{position:fixed;top:calc(var(--safe-top) + 66px);
-  left:50%;transform:translateX(-50%);z-index:89;white-space:nowrap;
-  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);
-  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
-  border-radius:100px;padding:7px 16px;
-  font-size:12px;font-weight:500;color:rgba(255,255,255,.8);
-  pointer-events:none;transition:opacity .4s}
 
 /* ── ROTATE ── */
 #rotOv{display:none;position:fixed;inset:0;z-index:500;
   background:rgba(0,0,0,.92);flex-direction:column;
   align-items:center;justify-content:center;gap:18px}
 #rotOv.show{display:flex}
-.ricon{font-size:54px;animation:rAnim 2s ease-in-out infinite}
-@keyframes rAnim{0%,100%{transform:rotate(0deg)}40%,60%{transform:rotate(90deg)}}
+.rico{font-size:54px;animation:ra 2s ease-in-out infinite}
+@keyframes ra{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(90deg)}}
 .rtxt{font-size:18px;font-weight:600;color:#fff}
 .rsub{font-size:14px;color:rgba(255,255,255,.5)}
 
-/* ── IPAD ── */
+/* iPad */
 @media(min-width:768px){
-  .pill{max-width:480px}
-  #viewerPanel{max-width:640px;border-radius:30px 30px 0 0}
-  #threeWrap{height:320px}
+  #mainPill{max-width:480px}
+  #vPanel{max-width:640px;border-radius:30px 30px 0 0}
+  #tWrap{height:320px}
   .vgrid{grid-template-columns:1fr 1fr 1fr}
   .sname{font-size:34px}
-  .fmain{font-size:38px}
+  .fmain{font-size:36px}
 }
 @media(min-width:1024px){
-  #bottomBar{flex-direction:row;align-items:flex-end;justify-content:center;
-    gap:14px;padding:0 40px calc(var(--safe-bottom) + 32px)}
-  #pillList{flex-direction:row;flex-wrap:wrap;justify-content:center;max-height:none}
-  .pill{width:auto;min-width:160px;max-width:220px}
-  #hintCard{width:auto;max-width:300px;flex-shrink:0}
+  #bot{flex-direction:row;align-items:flex-end;justify-content:center;
+    gap:16px;padding:0 40px calc(var(--SB) + 32px)}
+  #mainPill{flex:2;max-width:360px}
+  #hint{flex:1;max-width:260px;flex-shrink:0}
 }
 </style>
 </head>
 <body>
-<div id="rotOv"><div class="ricon">📱</div><div class="rtxt">Ruota il dispositivo</div><div class="rsub">Usa la modalità verticale</div></div>
-<div id="loadBar"><div id="loadFill"></div></div>
+
+<div id="rotOv">
+  <div class="rico">📱</div>
+  <div class="rtxt">Ruota il dispositivo</div>
+  <div class="rsub">Usa la modalità verticale</div>
+</div>
+<div id="lbar"><div id="lfill"></div></div>
 
 <!-- WELCOME -->
-<div id="permScreen">
-  <div class="picon">🔭</div>
-  <div class="ptitle">Spazio AR</div>
-  <div class="psub">Punta la fotocamera verso gli oggetti. I modelli matematici appaiono in realtà aumentata e puoi manipolarli.</div>
+<div id="perm">
+  <div class="pico">🔭</div>
+  <div class="ptit">Spazio AR</div>
+  <div class="psub">Punta la fotocamera. I modelli matematici appaiono in AR e puoi manipolarli.</div>
   <button id="startBtn" onclick="init()">Attiva fotocamera</button>
 </div>
 
 <video id="video" autoplay playsinline muted></video>
-<canvas id="cvDetect"></canvas>
+<canvas id="cvD"></canvas>
 
-<div id="navbar">
+<!-- NAV -->
+<div id="nav">
   <button id="navBack" onclick="goBack()">
     <svg viewBox="0 0 9 15" fill="none"><path d="M8 1L1 7.5L8 14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Indietro
+    &nbsp;Indietro
   </button>
-  <div id="navCenter"><h1>Spazio AR</h1><p>Formule nell'ambiente</p></div>
+  <div id="navC"><h1>Spazio AR</h1><p>Formule nell'ambiente</p></div>
   <div id="navBadge">DEMO 01</div>
 </div>
 
-<div id="statusChip">Avvio in corso…</div>
+<div id="chip">Avvio in corso…</div>
 
-<div id="bottomBar">
-  <div id="pillList"></div>
-  <div id="hintCard">
+<!-- BOTTOM -->
+<div id="bot">
+  <div id="mainPill" onclick="openFromPill()">
+    <span id="pillIcon">💡</span>
+    <span id="pillLabel">Oggetto</span>
+    <span id="pill3d">3D</span>
+    <span id="pillConf">—%</span>
+  </div>
+  <div id="secPills"></div>
+  <div id="hint">
     <h3>Muovi lentamente il dispositivo</h3>
-    <p>Tocca un oggetto rilevato per vedere formula e modello 3D interattivo.</p>
+    <p>Tocca l'oggetto rilevato per il modello 3D interattivo.</p>
   </div>
 </div>
 
-<!-- VIEWER: 3D + sheet -->
+<!-- VIEWER -->
 <div id="viewer">
-  <div id="viewerScrim" onclick="closeViewer()"></div>
-  <div id="viewerPanel">
-    <div class="panel-handle"></div>
-    <button id="panelClose" onclick="closeViewer()">✕</button>
-
-    <!-- THREE.JS -->
-    <div id="threeWrap">
-      <canvas id="threeCanvas"></canvas>
+  <div id="vScrim" onclick="closeViewer()"></div>
+  <div id="vPanel">
+    <div class="vhandle"></div>
+    <button id="vClose" onclick="closeViewer()">✕</button>
+    <div id="tWrap">
+      <canvas id="tCanvas"></canvas>
       <div id="arHint">Trascina per ruotare · Pizzica per zoom</div>
-      <div id="arCtrls">
-        <div class="actrl" onclick="resetCam()" title="Reset vista">⟳</div>
-        <div class="actrl" onclick="toggleWire()" title="Wireframe">◈</div>
+      <div id="arCtrl">
+        <div class="ac" onclick="resetCam()" title="Reset">⟳</div>
+        <div class="ac" onclick="toggleWire()" title="Wireframe">◈</div>
       </div>
     </div>
-
-    <div id="sheetScroll">
-      <div id="sheetBody" class="sbody"></div>
-    </div>
+    <div id="sScroll"><div id="sBody" class="sbody"></div></div>
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-// DATABASE
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  DATABASE — ogni entry ha: formule + tipo modello 3D preciso
+// ══════════════════════════════════════════════════════════
 const DB = {
-  "person":{icon:"🧍",label:"Persona",tagline:"Equilibrio statico — Seconda legge di Newton",subject:"FISICA — MECCANICA",
-    main:"ΣF = 0",alt:"P = m · g ,  N = −P",
-    desc:"Un corpo fermo è in equilibrio statico: la somma vettoriale di tutte le forze è zero. Il peso P = mg punta verso il basso; la reazione normale N del pavimento bilancia verso l'alto con uguale intensità.",
-    fact:"Un uomo di 70 kg esercita sul pavimento circa 686 N — il peso di 70 litri d'acqua.",
-    vars:[{s:"ΣF",n:"Somma forze [N]"},{s:"m",n:"Massa [kg]"},{s:"g",n:"9.81 m/s²"},{s:"N",n:"Reazione vincolare [N]"}],
-    model:{type:"cylinder",color:0x5AC8FA,dims:["h","r"],formulas:["V = πr²h","S_lat = 2πrh"]}},
-  "chair":{icon:"🪑",label:"Sedia",tagline:"Pressione — distribuzione del carico",subject:"FISICA — PRESSIONE",
-    main:"P = F / A",alt:"F = m · g",
-    desc:"La pressione è forza distribuita su superficie. Le gambe della sedia concentrano il peso su piccole aree, aumentando enormemente la pressione locale.",
-    fact:"Un tacco a spillo (1 cm²) con 60 kg genera 600.000 Pa — più di un elefante!",
-    vars:[{s:"P",n:"Pressione [Pa]"},{s:"F",n:"Forza peso [N]"},{s:"A",n:"Area contatto [m²]"},{s:"g",n:"9.81 m/s²"}],
-    model:{type:"box",color:0x5AC8FA,dims:["L","h","P"],formulas:["V = L·h·P","A = L·P"]}},
-  "dining table":{icon:"🪵",label:"Tavolo",tagline:"Equilibrio statico e momenti torcenti",subject:"FISICA — STATICITÀ",
-    main:"ΣF = 0  ,  Στ = 0",alt:"τ = F · d · sinθ",
-    desc:"Il tavolo è in equilibrio completo: né si muove né ruota. I momenti torcenti τ=F·d·sinθ di tutti i carichi si bilanciano. Una gamba corta rompe l'equilibrio creando un momento risultante non nullo.",
-    fact:"Archimede: 'Datemi una leva abbastanza lunga e solleverò il mondo.' Il momento torcente è esattamente questa idea.",
-    vars:[{s:"ΣF",n:"Somma forze [N]"},{s:"Στ",n:"Somma momenti [N·m]"},{s:"d",n:"Braccio [m]"},{s:"θ",n:"Angolo"}],
-    model:{type:"box",color:0x5AC8FA,dims:["L = 1.2m","h = 0.75m"],formulas:["τ = F·d·sinθ","ΣF = 0"]}},
-  "laptop":{icon:"💻",label:"Laptop",tagline:"Effetto Joule — dissipazione elettrica",subject:"ELETTRICITÀ",
-    main:"P = V · I",alt:"P = I²R = V²/R",
-    desc:"Il laptop converte energia elettrica in calcolo, luce e calore. La CPU da 15W in un'ora scalderebbe 1 litro d'acqua di 13°C. La resistenza R dei transistor a nanometro è il segreto dell'efficienza moderna.",
-    fact:"Un laptop ha miliardi di transistor. Se fossero persone, ci vorrebbero 140 pianeti Terra.",
-    vars:[{s:"P",n:"Potenza [W]"},{s:"V",n:"Tensione [V]"},{s:"I",n:"Corrente [A]"},{s:"R",n:"Resistenza [Ω]"}],
-    model:{type:"box",color:0x5AC8FA,dims:["35cm","24cm","2cm"],formulas:["P = V·I","Q = P·t"]}},
-  "tv":{icon:"📺",label:"Televisore",tagline:"Onde elettromagnetiche — luce e segnale",subject:"FISICA — ONDE EM",
-    main:"c = λ · f",alt:"E = h · f",
-    desc:"Il segnale TV viaggia come onda EM a velocità della luce. Lo schermo converte fotoni in luce: E=hf per ogni colore. I pixel emettono tre colori primari (RGB) a frequenze diverse.",
-    fact:"Il digitale DVB-T2 usa 470–790 MHz. La luce visibile ha frequenze un milione di volte più alte!",
-    vars:[{s:"c",n:"3×10⁸ m/s"},{s:"λ",n:"Lunghezza d'onda [m]"},{s:"f",n:"Frequenza [Hz]"},{s:"h",n:"Cost. di Planck"}],
-    model:{type:"box",color:0x5AC8FA,dims:["120cm","70cm","6cm"],formulas:["c = λ·f","E = hf"]}},
-  "cell phone":{icon:"📱",label:"Telefono",tagline:"Onde radio — 5G e quantizzazione",subject:"FISICA — ONDE EM",
-    main:"c = λ · f",alt:"E = h · f = hc/λ",
-    desc:"Il telefono trasmette onde EM a GHz. 5G a 26 GHz ha λ ≈ 11.5 mm — grande quanto un'unghia. Più alta la frequenza, più energia per fotone, più velocità di trasmissione dati.",
-    fact:"Un segnale 5G a 26 GHz ha λ di soli 11.5 mm. Ecco perché le antenne 5G sono piccole.",
-    vars:[{s:"c",n:"3×10⁸ m/s"},{s:"λ",n:"Lunghezza d'onda"},{s:"f",n:"Frequenza [Hz]"},{s:"E",n:"Energia fotone [J]"}],
-    model:{type:"box",color:0x5AC8FA,dims:["7.5cm","16cm","0.8cm"],formulas:["c = λ·f","E = hf"]}},
-  "book":{icon:"📚",label:"Libro",tagline:"Teorema fondamentale del calcolo",subject:"MATEMATICA — ANALISI",
-    main:"∫ₐᵇ f(x) dx = F(b) − F(a)",alt:"F′(x) = f(x)",
-    desc:"Come le pagine si sommano per formare il volume, l'integrale somma infiniti valori infinitesimali. Derivata e integrale sono operazioni inverse: scoperta rivoluzionaria di Newton e Leibniz nel XVII secolo.",
-    fact:"Newton e Leibniz svilupparono il calcolo quasi simultaneamente — dando luogo alla più famosa disputa scientifica della storia.",
-    vars:[{s:"∫",n:"Integrale (S da 'summa')"},{s:"f(x)",n:"Funzione integranda"},{s:"F(x)",n:"Primitiva"},{s:"dx",n:"Differenziale"}],
-    model:{type:"box",color:0x5AC8FA,dims:["21cm","30cm","3cm"],formulas:["V = L·A·P","∫f(x)dx = F(b)-F(a)"]}},
-  "bottle":{icon:"🍶",label:"Bottiglia",tagline:"Legge di Stevin — cilindro e fluidi",subject:"FISICA — FLUIDOSTATICA",
-    main:"P = P₀ + ρgh",alt:"F_A = ρ · g · V",
-    desc:"La bottiglia è un cilindro. La pressione interna aumenta con la profondità h. Il principio di Archimede: la spinta verso l'alto F_A = ρgV è pari al peso del fluido spostato.",
-    fact:"Archimede capì il suo principio nella vasca da bagno e corse nudo gridando 'Eureka!'",
-    vars:[{s:"ρ",n:"Densità [kg/m³]"},{s:"h",n:"Profondità [m]"},{s:"P₀",n:"Pressione atm."},{s:"V",n:"Volume [m³]"}],
-    model:{type:"cylinder",color:0x5AC8FA,dims:["r = 3cm","h = 25cm"],formulas:["V = πr²h","P = P₀+ρgh"]}},
-  "cup":{icon:"☕",label:"Tazza",tagline:"Cilindro — calore specifico",subject:"FISICA — TERMODINAMICA",
-    main:"Q = m · c · ΔT",alt:"V = π · r² · h",
-    desc:"La tazza è un cilindro. V = πr²h determina quanta acqua contiene. Il calore Q = mcΔT per scaldarla dipende dalla massa e dal calore specifico dell'acqua (c = 4186 J/kg·K — uno dei più alti in natura).",
-    fact:"250 ml a 80°C contengono ~62.800 J — abbastanza per sollevare 1 kg di 6.4 km!",
-    vars:[{s:"Q",n:"Calore [J]"},{s:"m",n:"Massa [kg]"},{s:"c",n:"Calore spec. [J/kg·K]"},{s:"V=πr²h",n:"Volume cilindro"}],
-    model:{type:"cylinder",color:0x5AC8FA,dims:["r","h"],formulas:["V = πr²h","Q = mcΔT"]}},
-  "potted plant":{icon:"🌿",label:"Pianta",tagline:"Fotosintesi — energia di Gibbs",subject:"CHIMICA",
-    main:"6CO₂+6H₂O → C₆H₁₂O₆+6O₂",alt:"ΔG = ΔH − T·ΔS",
-    desc:"La fotosintesi converte luce in glucosio. È endotermica: ha bisogno di fotoni solari. L'energia libera di Gibbs ΔG governa la spontaneità: ΔG < 0 → spontanea, ΔG > 0 → non spontanea.",
-    fact:"Le piante producono 120 miliardi di tonnellate di glucosio l'anno, assorbendo 180 Gt di CO₂.",
-    vars:[{s:"ΔG",n:"Energia di Gibbs [J]"},{s:"ΔH",n:"Entalpia [J]"},{s:"ΔS",n:"Entropia [J/K]"},{s:"T",n:"Temperatura [K]"}],
-    model:{type:"sphere",color:0x5AC8FA,dims:["r"],formulas:["V = 4/3·πr³","S = 4πr²"]}},
-  "vase":{icon:"🏺",label:"Vaso",tagline:"Solido di rivoluzione",subject:"MATEMATICA — ANALISI",
-    main:"V = π ∫ [f(x)]² dx",alt:"S = 2π ∫ f(x)√(1+f′²)dx",
-    desc:"Il vaso è un solido di rivoluzione: si genera ruotando f(x) attorno all'asse verticale. Il volume si calcola integrando le sezioni circolari. Pappo di Alessandria formulò questo principio nel III sec.",
-    fact:"Il vasaio modella intuitivamente f(x) sul tornio: la rotazione genera il volume.",
-    vars:[{s:"V",n:"Volume [m³]"},{s:"f(x)",n:"Profilo (raggio)"},{s:"S",n:"Superficie laterale"},{s:"π",n:"3.14159…"}],
-    model:{type:"lathe",color:0x5AC8FA,dims:["f(x)"],formulas:["V = π∫f²dx","S = 2π∫f·ds"]}},
-  "clock":{icon:"⏰",label:"Orologio",tagline:"Pendolo — oscillatore armonico",subject:"FISICA — OSCILLAZIONI",
-    main:"T = 2π √(L/g)",alt:"x(t) = A·cos(ωt+φ)",
-    desc:"Il pendolo oscilla con periodo T dipendente solo da L e g, non dalla massa. Galileo scoprì questa isocronia osservando un lampadario. Il moto è descritto da una funzione coseno nel tempo.",
-    fact:"Un pendolo di 1 metro: T = 2.006 s — quasi esattamente 2 secondi!",
-    vars:[{s:"T",n:"Periodo [s]"},{s:"L",n:"Lunghezza filo [m]"},{s:"g",n:"9.81 m/s²"},{s:"ω=2π/T",n:"Pulsazione [rad/s]"}],
-    model:{type:"pendulum",color:0x5AC8FA,dims:["L","m"],formulas:["T = 2π√(L/g)","x = A·cos(ωt+φ)"]}},
-  "sports ball":{icon:"⚽",label:"Pallone",tagline:"Sfera — moto parabolico",subject:"GEOMETRIA + FISICA",
-    main:"x² + y² + z² = r²",alt:"x_max = v₀²·sin(2θ)/g",
-    desc:"Il pallone è una sfera: equidistante dal centro in ogni direzione. Lanciato, descrive una parabola. La gittata massima si ottiene a θ=45°. L'effetto Magnus (rotazione) causa la curva delle punizioni.",
-    fact:"Con v₀=33 m/s e θ=45°, la gittata teorica è ~111 m — la larghezza di un campo!",
-    vars:[{s:"r",n:"Raggio [m]"},{s:"v₀",n:"Vel. iniziale [m/s]"},{s:"θ",n:"Angolo di lancio"},{s:"g",n:"9.81 m/s²"}],
-    model:{type:"sphere",color:0x5AC8FA,dims:["r = 11cm"],formulas:["x²+y²+z²=r²","S = 4πr²","V = 4/3πr³"]}},
-  "bowl":{icon:"🥣",label:"Ciotola",tagline:"Paraboloide — sezione conica",subject:"GEOMETRIA ANALITICA",
-    main:"y = x² / (4p)",alt:"dist(P,F) = dist(P,direttrice)",
-    desc:"La ciotola ha sezione parabolica. La parabola è il luogo dei punti equidistanti dal fuoco e dalla direttrice. Le antenne paraboliche concentrano tutti i segnali nel fuoco grazie a questa proprietà.",
-    fact:"La parabola riflette tutti i raggi paralleli nel fuoco — principio di antenne e telescopi.",
-    vars:[{s:"p",n:"Dist. vertice-fuoco"},{s:"F",n:"Fuoco (0,p)"},{s:"y",n:"Ordinata"},{s:"x",n:"Ascissa"}],
-    model:{type:"paraboloid",color:0x5AC8FA,dims:["r","h"],formulas:["y = x²/(4p)","V = πr²h/2"]}},
-  "lamp":{icon:"💡",label:"Lampada",tagline:"Equazione della sfera nello spazio",subject:"GEOMETRIA ANALITICA",
-    main:"x² + y² + z² = r²",alt:"(x−a)²+(y−b)²+(z−c)² = r²",
-    desc:"La lampadina sferica: ogni punto sulla superficie è equidistante dal centro. La sfera minimizza il rapporto superficie/volume — le bolle di sapone sono sferiche per questa ragione fisica.",
-    fact:"Raddoppiando r, la superficie quadruplica ma il volume ottuplica. Ecco perché gli elefanti hanno orecchie grandi: più superficie per disperdere il calore.",
-    vars:[{s:"r",n:"Raggio [m]"},{s:"(a,b,c)",n:"Centro"},{s:"S=4πr²",n:"Superficie"},{s:"V=4/3πr³",n:"Volume"}],
-    model:{type:"sphere",color:0x5AC8FA,dims:["r","O(0,0,0)"],formulas:["x²+y²+z²=r²","S = 4πr²","V = 4/3πr³"]}},
-  "window":{icon:"🪟",label:"Finestra",tagline:"Legge di Snell — rifrazione ottica",subject:"OTTICA",
-    main:"n₁·sinθ₁ = n₂·sinθ₂",alt:"n = c/v",
-    desc:"La luce cambia velocità attraversando il vetro (n≈1.5) e si rifrange. La legge di Snell mette in relazione angoli e indici di rifrazione. Lenti, prismi e fibre ottiche sfruttano questa proprietà.",
-    fact:"Un diamante ha n=2.42. Il taglio brillante fa rimbalzare la luce all'interno per riflessione totale — per questo brilla così tanto.",
-    vars:[{s:"n",n:"Indice di rifrazione"},{s:"θ₁",n:"Angolo incidenza"},{s:"θ₂",n:"Angolo rifrazione"},{s:"v",n:"Vel. luce nel mezzo"}],
-    model:{type:"refraction",color:0x5AC8FA,dims:["θ₁","θ₂","n₁","n₂"],formulas:["n₁sinθ₁=n₂sinθ₂","n = c/v"]}},
-  "door":{icon:"🚪",label:"Porta",tagline:"Momento torcente — leva",subject:"FISICA — MECCANICA",
-    main:"τ = F · d · sinθ",alt:"W = τ · Δθ",
-    desc:"Aprire una porta richiede un momento torcente τ=F·d rispetto all'asse delle cerniere. Più la forza è applicata lontano dall'asse (grande d), minore è la forza necessaria per lo stesso effetto.",
-    fact:"Se la maniglia fosse a metà porta (d/2), servirebbe il doppio della forza per aprirla!",
-    vars:[{s:"τ",n:"Momento torcente [N·m]"},{s:"F",n:"Forza [N]"},{s:"d",n:"Distanza dall'asse [m]"},{s:"θ",n:"Angolo F-braccio"}],
-    model:{type:"box",color:0x5AC8FA,dims:["90cm","210cm"],formulas:["τ = F·d·sinθ","W = τ·Δθ"]}},
-  "refrigerator":{icon:"🧊",label:"Frigorifero",tagline:"Macchina termica inversa — COP",subject:"FISICA — TERMODINAMICA",
-    main:"COP = Q_c / W",alt:"η_Carnot = 1 − T_c/T_h",
-    desc:"Il frigorifero è una pompa di calore: trasferisce energia termica dal freddo al caldo spendendo lavoro. Il COP misura l'efficienza: un buon frigo spende 1 kWh per spostarne 3.",
-    fact:"Il secondo principio: il calore non va mai spontaneamente dal freddo al caldo. Serve sempre un lavoro esterno.",
-    vars:[{s:"COP",n:"Coeff. prestazione"},{s:"Q_c",n:"Calore sottratto [J]"},{s:"W",n:"Lavoro speso [J]"},{s:"T",n:"Temperatura [K]"}],
-    model:{type:"box",color:0x5AC8FA,dims:["60cm","180cm","65cm"],formulas:["COP = Qc/W","η = 1−Tc/Th"]}},
-  "bicycle":{icon:"🚲",label:"Bicicletta",tagline:"Momento angolare — toro",subject:"FISICA — MECCANICA ROTATORIA",
-    main:"L = I · ω",alt:"I_disco = ½ m r²",
-    desc:"La ruota è un toro. Il suo momento angolare L=Iω si conserva in assenza di coppie esterne, stabilizzando la bicicletta. Più gira veloce, più è difficile farla cadere.",
-    fact:"Un giroscopio sfrutta lo stesso principio ed è usato nei satelliti e nei sistemi GPS.",
-    vars:[{s:"L",n:"Momento angolare"},{s:"I",n:"Momento d'inerzia"},{s:"ω",n:"Vel. angolare [rad/s]"},{s:"r",n:"Raggio [m]"}],
-    model:{type:"torus",color:0x5AC8FA,dims:["R = 35cm","r = 4cm"],formulas:["L = Iω","I = mR²"]}},
-  "car":{icon:"🚗",label:"Auto",tagline:"Moto uniformemente accelerato — MRUA",subject:"FISICA — CINEMATICA",
-    main:"s = v₀t + ½at²",alt:"v² = v₀² + 2as",
-    desc:"L'auto in MRUA percorre uno spazio che cresce col quadrato del tempo. Lo 0-100 in 8s corrisponde a a≈3.5 m/s². In quei 8 secondi si percorrono circa 112 metri.",
-    fact:"Una F1 fa 0-100 in ~2s con a≈14 m/s² — 1.5g! Il pilota sente il peso aumentare del 50%.",
-    vars:[{s:"s",n:"Spazio [m]"},{s:"v₀",n:"Vel. iniziale [m/s]"},{s:"a",n:"Accelerazione [m/s²]"},{s:"t",n:"Tempo [s]"}],
-    model:{type:"box",color:0x5AC8FA,dims:["180cm","55cm","85cm"],formulas:["s = v₀t+½at²","v = v₀+at"]}},
+
+"person":{icon:"🧍",label:"Persona",tagline:"Equilibrio statico — ΣF=0",subject:"FISICA — MECCANICA",
+  main:"ΣF = 0",alt:"P = m·g ,  N = −P",
+  desc:"Un corpo fermo è in equilibrio statico: la somma vettoriale di tutte le forze è zero. Il peso P=mg punta verso il basso; la reazione N del pavimento bilancia con uguale intensità verso l'alto.",
+  fact:"Un uomo di 70 kg esercita sul pavimento 686 N — il peso di 70 litri d'acqua.",
+  vars:[{s:"ΣF",n:"Somma vettoriale forze [N]"},{s:"m",n:"Massa corporea [kg]"},{s:"g",n:"9.81 m/s²"},{s:"N",n:"Reazione normale [N]"}],
+  model:{type:"human", labels:["h","baricentro","P=mg↓","N↑"]}},
+
+"chair":{icon:"🪑",label:"Sedia",tagline:"Pressione — P = F/A",subject:"FISICA — PRESSIONE",
+  main:"P = F / A",alt:"F = m · g",
+  desc:"Pressione = forza / area. Le gambe della sedia concentrano il peso su aree ridotte, amplificando la pressione sul pavimento. Minore l'area, maggiore la pressione.",
+  fact:"Un tacco a spillo (1 cm²) con 60 kg genera 600.000 Pa — più di un elefante!",
+  vars:[{s:"P",n:"Pressione [Pa=N/m²]"},{s:"F",n:"Forza peso [N]"},{s:"A",n:"Area di contatto [m²]"},{s:"g",n:"9.81 m/s²"}],
+  model:{type:"box_chair", labels:["L","h","A=L·p","P=F/A"]}},
+
+"dining table":{icon:"🪵",label:"Tavolo",tagline:"Momento torcente — Στ=0",subject:"FISICA — STATICA",
+  main:"ΣF=0 ,  Στ=0",alt:"τ = F · d · sinθ",
+  desc:"Il tavolo è in equilibrio completo: né traslazione (ΣF=0) né rotazione (Στ=0). I momenti torcenti τ=F·d·sinθ di tutti i carichi si bilanciano rispetto a qualsiasi punto.",
+  fact:"Archimede: 'Datemi una leva abbastanza lunga e solleverò il mondo.' Il momento è questa idea.",
+  vars:[{s:"ΣF",n:"Somma forze [N]"},{s:"Στ",n:"Somma momenti [N·m]"},{s:"d",n:"Braccio forza [m]"},{s:"θ",n:"Angolo F-braccio"}],
+  model:{type:"box_table", labels:["L=120cm","h=75cm","τ=F·d","ΣF=0"]}},
+
+"laptop":{icon:"💻",label:"Laptop",tagline:"Potenza elettrica — P=VI",subject:"ELETTRICITÀ",
+  main:"P = V · I",alt:"P = I²R = V²/R",
+  desc:"Il laptop converte energia elettrica in calcolo, luce e calore. Legge di Joule: P=I²R. La CPU da 15W in un'ora scalderebbe 1 L d'acqua di 13°C.",
+  fact:"Un laptop ha miliardi di transistor. Se fossero persone, ci vorrebbero 140 pianeti Terra.",
+  vars:[{s:"P",n:"Potenza [W]"},{s:"V",n:"Tensione [V]"},{s:"I",n:"Corrente [A]"},{s:"R",n:"Resistenza [Ω]"}],
+  model:{type:"flat_box", labels:["35cm","24cm","2cm","P=VI"]}},
+
+"tv":{icon:"📺",label:"Televisore",tagline:"Onde EM — c=λf",subject:"FISICA — ONDE EM",
+  main:"c = λ · f",alt:"E = h · f",
+  desc:"Il segnale TV viaggia come onda EM a c=3×10⁸ m/s. Lo schermo converte fotoni in luce visibile: ogni pixel emette R,G,B con E=hf diversa per ogni colore.",
+  fact:"Il DVB-T2 usa 470–790 MHz. La luce visibile ha frequenze un milione di volte più alte!",
+  vars:[{s:"c",n:"3×10⁸ m/s"},{s:"λ",n:"Lunghezza d'onda [m]"},{s:"f",n:"Frequenza [Hz]"},{s:"h",n:"Cost. Planck 6.63×10⁻³⁴"}],
+  model:{type:"flat_box", labels:["120cm","70cm","6cm","c=λf"]}},
+
+"cell phone":{icon:"📱",label:"Telefono",tagline:"Onde radio — c=λf",subject:"FISICA — ONDE EM",
+  main:"c = λ · f",alt:"E = hc / λ",
+  desc:"Il telefono trasmette onde EM. 5G a 26 GHz → λ≈11.5 mm. Più alta la frequenza, più energia per fotone E=hf, più dati trasmissibili per unità di tempo.",
+  fact:"5G a 26 GHz ha λ di 11.5 mm — grande quanto un'unghia. Per questo le antenne 5G sono minuscole.",
+  vars:[{s:"c",n:"3×10⁸ m/s"},{s:"λ",n:"Lunghezza d'onda"},{s:"f",n:"Frequenza [Hz]"},{s:"E",n:"Energia fotone [J]"}],
+  model:{type:"flat_box", labels:["7.5cm","16cm","0.8cm","λ=c/f"]}},
+
+"book":{icon:"📚",label:"Libro",tagline:"Parallelepipedo — V=L·A·P",subject:"GEOMETRIA",
+  main:"V = L · A · P",alt:"∫ₐᵇ f(x)dx = F(b)−F(a)",
+  desc:"Il libro è un parallelepipedo rettangolo. Come le pagine si sommano per formare il volume totale, l'integrale somma infiniti contributi infinitesimali. Derivata e integrale sono operazioni inverse.",
+  fact:"Newton e Leibniz svilupparono il calcolo quasi simultaneamente nel XVII sec. — la più famosa disputa scientifica della storia.",
+  vars:[{s:"V",n:"Volume [m³]"},{s:"L",n:"Lunghezza [m]"},{s:"A",n:"Altezza [m]"},{s:"P",n:"Profondità [m]"}],
+  model:{type:"box_book", labels:["L=21cm","A=30cm","P=3cm","V=L·A·P"]}},
+
+"bottle":{icon:"🍶",label:"Bottiglia",tagline:"Cilindro — P=P₀+ρgh",subject:"FISICA — FLUIDOSTATICA",
+  main:"P = P₀ + ρgh",alt:"F_A = ρ · g · V",
+  desc:"La bottiglia è un cilindro. La pressione interna aumenta con h (legge di Stevin). Principio di Archimede: la spinta F_A=ρgV è pari al peso del fluido spostato.",
+  fact:"Archimede capì il suo principio nella vasca da bagno e corse nudo gridando 'Eureka!'",
+  vars:[{s:"ρ",n:"Densità liquido [kg/m³]"},{s:"h",n:"Profondità [m]"},{s:"P₀",n:"Pressione atm. [Pa]"},{s:"V=πr²h",n:"Volume cilindro"}],
+  model:{type:"cylinder", labels:["r","h","V=πr²h","P=P₀+ρgh"]}},
+
+"cup":{icon:"☕",label:"Tazza",tagline:"Cilindro — Q=mcΔT",subject:"FISICA — TERMODINAMICA",
+  main:"Q = m · c · ΔT",alt:"V = π · r² · h",
+  desc:"La tazza è un cilindro. V=πr²h determina la capienza. Il calore Q=mcΔT necessario dipende da massa e calore specifico dell'acqua (c=4186 J/kg·K — tra i più alti in natura).",
+  fact:"250 ml a 80°C contengono ~62.800 J di energia termica — abbastanza per sollevare 1 kg di 6.4 km!",
+  vars:[{s:"Q",n:"Calore [J]"},{s:"m",n:"Massa [kg]"},{s:"c",n:"Calore spec. [J/kg·K]"},{s:"V=πr²h",n:"Volume cilindro [m³]"}],
+  model:{type:"cylinder", labels:["r=4cm","h=10cm","V=πr²h","Q=mcΔT"]}},
+
+"potted plant":{icon:"🌿",label:"Pianta",tagline:"Fotosintesi — ΔG=ΔH−TΔS",subject:"CHIMICA",
+  main:"6CO₂+6H₂O→C₆H₁₂O₆+6O₂",alt:"ΔG = ΔH − T·ΔS",
+  desc:"La fotosintesi converte luce solare in glucosio. L'energia libera di Gibbs ΔG governa la spontaneità: ΔG<0 spontanea. La fotosintesi è endotermica: richiede energia luminosa.",
+  fact:"Le piante producono 120 miliardi di tonnellate di glucosio/anno, assorbendo 180 Gt di CO₂.",
+  vars:[{s:"ΔG",n:"Energia Gibbs [J]"},{s:"ΔH",n:"Entalpia [J]"},{s:"ΔS",n:"Entropia [J/K]"},{s:"T",n:"Temperatura [K]"}],
+  model:{type:"sphere", labels:["r","S=4πr²","V=4/3πr³","ΔG=ΔH−TΔS"]}},
+
+"vase":{icon:"🏺",label:"Vaso",tagline:"Solido di rivoluzione",subject:"MATEMATICA — ANALISI",
+  main:"V = π∫[f(x)]²dx",alt:"S = 2π∫f(x)√(1+f′²)dx",
+  desc:"Il vaso è un solido di rivoluzione: si genera ruotando la curva f(x) attorno all'asse y. Il volume si calcola integrando le sezioni circolari di raggio f(x).",
+  fact:"Il vasaio modella intuitivamente f(x) sul tornio: la rotazione genera il volume.",
+  vars:[{s:"V",n:"Volume [m³]"},{s:"f(x)",n:"Profilo (raggio)"},{s:"S",n:"Superficie laterale [m²]"},{s:"π",n:"3.14159…"}],
+  model:{type:"lathe", labels:["f(x)","asse y","V=π∫f²dx","S=2π∫f·ds"]}},
+
+"clock":{icon:"⏰",label:"Orologio",tagline:"Pendolo — T=2π√(L/g)",subject:"FISICA — OSCILLAZIONI",
+  main:"T = 2π √(L/g)",alt:"x(t) = A·cos(ωt+φ)",
+  desc:"Il pendolo oscilla con periodo T che dipende solo da L e g, non dalla massa. Galileo scoprì questa isocronia osservando un lampadario in cattedrale. Il moto nel tempo è descritto da una funzione coseno.",
+  fact:"Un pendolo di 1 metro: T=2.006 s — quasi esattamente 2 secondi!",
+  vars:[{s:"T",n:"Periodo [s]"},{s:"L",n:"Lunghezza filo [m]"},{s:"g",n:"9.81 m/s²"},{s:"ω=2π/T",n:"Pulsazione [rad/s]"}],
+  model:{type:"pendulum", labels:["L","m","T=2π√(L/g)","x=A·cos(ωt)"]}},
+
+"sports ball":{icon:"⚽",label:"Pallone",tagline:"Sfera — x²+y²+z²=r²",subject:"GEOMETRIA + FISICA",
+  main:"x² + y² + z² = r²",alt:"x_max = v₀²·sin(2θ)/g",
+  desc:"Il pallone è una sfera perfetta: ogni punto equidistante dal centro. Lanciato, descrive una parabola con gittata massima a θ=45°. L'effetto Magnus (rotazione) devia la traiettoria — le punizioni a banana.",
+  fact:"Con v₀=33 m/s e θ=45°, gittata teorica ≈111 m — la larghezza di un campo!",
+  vars:[{s:"r",n:"Raggio [m]"},{s:"v₀",n:"Vel. iniziale [m/s]"},{s:"θ",n:"Angolo lancio"},{s:"g",n:"9.81 m/s²"}],
+  model:{type:"sphere", labels:["r=11cm","x²+y²+z²=r²","S=4πr²","V=4/3πr³"]}},
+
+"bowl":{icon:"🥣",label:"Ciotola",tagline:"Paraboloide — y=x²/(4p)",subject:"GEOMETRIA ANALITICA",
+  main:"y = x² / (4p)",alt:"dist(P,F)=dist(P,direttrice)",
+  desc:"La ciotola è un paraboloide di rotazione. La parabola è il luogo dei punti equidistanti dal fuoco F e dalla direttrice. Le antenne paraboliche concentrano tutti i segnali paralleli nel fuoco.",
+  fact:"La parabola riflette tutti i raggi paralleli all'asse nel fuoco — il principio di antenne e telescopi riflettori.",
+  vars:[{s:"p",n:"Dist. vertice-fuoco"},{s:"F",n:"Fuoco (0,p)"},{s:"y",n:"Ordinata"},{s:"x",n:"Ascissa"}],
+  model:{type:"paraboloid", labels:["y=x²/4p","fuoco F","r","h"]}},
+
+"lamp":{icon:"💡",label:"Lampada",tagline:"Sfera — x²+y²+z²=r²",subject:"GEOMETRIA ANALITICA",
+  main:"x² + y² + z² = r²",alt:"(x−a)²+(y−b)²+(z−c)²=r²",
+  desc:"La lampadina è una sfera. Ogni punto sulla superficie è equidistante dal centro O. La sfera minimizza il rapporto S/V: per uguale volume, nessun altro solido ha superficie minore.",
+  fact:"Raddoppiando r: superficie quadruplica, volume ottuplica. Gli elefanti hanno orecchie grandi per disperdere più calore.",
+  vars:[{s:"r",n:"Raggio [m]"},{s:"(a,b,c)",n:"Centro della sfera"},{s:"S=4πr²",n:"Superficie [m²]"},{s:"V=4/3πr³",n:"Volume [m³]"}],
+  model:{type:"sphere", labels:["r","O(0,0,0)","S=4πr²","V=4/3πr³"]}},
+
+"window":{icon:"🪟",label:"Finestra",tagline:"Legge di Snell — rifrazione",subject:"OTTICA",
+  main:"n₁·sinθ₁ = n₂·sinθ₂",alt:"n = c/v",
+  desc:"La luce cambia velocità attraversando il vetro (n≈1.5) e si rifrange. La legge di Snell lega angoli e indici di rifrazione. Lenti, prismi e fibre ottiche sfruttano questa proprietà.",
+  fact:"Un diamante ha n=2.42. Il taglio brillante crea riflessione totale interna — per questo brilla così tanto.",
+  vars:[{s:"n",n:"Indice di rifrazione"},{s:"θ₁",n:"Angolo incidenza"},{s:"θ₂",n:"Angolo rifrazione"},{s:"v",n:"Velocità luce nel mezzo"}],
+  model:{type:"refraction", labels:["θ₁","θ₂","n₁","n₂"]}},
+
+"door":{icon:"🚪",label:"Porta",tagline:"Momento torcente — τ=F·d",subject:"FISICA — MECCANICA",
+  main:"τ = F · d · sinθ",alt:"W = τ · Δθ",
+  desc:"Aprire una porta richiede un momento torcente τ=F·d·sinθ rispetto all'asse delle cerniere. Maggiore è d (distanza dall'asse), minore è la forza necessaria per lo stesso momento.",
+  fact:"Se la maniglia fosse a metà porta, servirebbe il doppio della forza. Per questo la maniglia è lontana dal cardine!",
+  vars:[{s:"τ",n:"Momento torcente [N·m]"},{s:"F",n:"Forza applicata [N]"},{s:"d",n:"Braccio [m]"},{s:"θ",n:"Angolo F-braccio"}],
+  model:{type:"box_door", labels:["h=210cm","L=90cm","d=braccio","τ=F·d"]}},
+
+"refrigerator":{icon:"🧊",label:"Frigorifero",tagline:"Macchina frigorifera — COP",subject:"FISICA — TERMODINAMICA",
+  main:"COP = Q_c / W",alt:"η_Carnot=1−T_c/T_h",
+  desc:"Il frigorifero trasferisce calore dal freddo al caldo spendendo lavoro W. COP=Q_c/W: un buon frigo spende 1 kWh per spostare 3 kWh di calore. Il II principio vieta il flusso spontaneo caldo→freddo.",
+  fact:"Il II principio della termodinamica: il calore non va mai spontaneamente dal freddo al caldo.",
+  vars:[{s:"COP",n:"Coeff. di prestazione"},{s:"Q_c",n:"Calore sottratto [J]"},{s:"W",n:"Lavoro speso [J]"},{s:"T",n:"Temperatura [K]"}],
+  model:{type:"box_tall", labels:["60cm","180cm","COP=Qc/W","T_c<T_h"]}},
+
+"bicycle":{icon:"🚲",label:"Bicicletta",tagline:"Momento angolare — L=Iω",subject:"FISICA — MECCANICA",
+  main:"L = I · ω",alt:"I_disco = ½ m r²",
+  desc:"La ruota (toro) conserva il momento angolare L=Iω in assenza di coppie esterne, stabilizzando la bicicletta. Più alta la velocità angolare ω, più stabile il sistema.",
+  fact:"Un giroscopio sfrutta lo stesso principio: è usato nei satelliti e nei sistemi di navigazione.",
+  vars:[{s:"L",n:"Momento angolare [kg·m²/s]"},{s:"I",n:"Momento inerzia [kg·m²]"},{s:"ω",n:"Vel. angolare [rad/s]"},{s:"r",n:"Raggio ruota [m]"}],
+  model:{type:"torus", labels:["R=35cm","r=4cm","I=mR²","L=Iω"]}},
+
+"car":{icon:"🚗",label:"Auto",tagline:"MRUA — s=v₀t+½at²",subject:"FISICA — CINEMATICA",
+  main:"s = v₀t + ½at²",alt:"v² = v₀² + 2as",
+  desc:"L'auto in MRUA (moto rett. uniformemente accelerato) percorre spazio ∝ t². 0→100 km/h in 8s: a≈3.5 m/s², spazio percorso ≈112 m. Le leggi MRUA furono scoperte da Galileo su piani inclinati.",
+  fact:"Una F1: 0→100 in ≈2s con a≈14 m/s²=1.4g. Il pilota sente il suo peso aumentare del 40%.",
+  vars:[{s:"s",n:"Spazio percorso [m]"},{s:"v₀",n:"Vel. iniziale [m/s]"},{s:"a",n:"Accelerazione [m/s²]"},{s:"t",n:"Tempo [s]"}],
+  model:{type:"box_car", labels:["L=180cm","h=55cm","s=v₀t+½at²","a=Δv/Δt"]}},
+
+"dog":{icon:"🐕",label:"Cane",tagline:"Termoregolazione — Q=mcΔT",subject:"BIOLOGIA/FISICA",
+  main:"Q = m · c · ΔT",alt:"Φ = σ·ε·A·T⁴",
+  desc:"I mammiferi mantengono T≈37–39°C. Il calore metabolico è disperso per conduzione, convezione, irraggiamento ed evaporazione. Il cane ansima per evaporare acqua dalla lingua.",
+  fact:"Il cane non ha ghiandole sudoripare sul corpo (tranne le zampe): si raffredda solo ansimando.",
+  vars:[{s:"Q",n:"Calore metabolico [J]"},{s:"c",n:"Calore specifico"},{s:"ε",n:"Emissività ≈0.98"},{s:"T",n:"Temperatura [K]"}],
+  model:{type:"sphere", labels:["T=38°C","Φ=σεAT⁴","Q=mcΔT","r"]}},
+
+"cat":{icon:"🐈",label:"Gatto",tagline:"Conservazione — L=Iω=cost",subject:"FISICA — MECCANICA",
+  main:"L = I · ω = cost.",alt:"I₁ω₁ = I₂ω₂",
+  desc:"Il gatto si raddrizza cadendo conservando L=0: ruota metà corpo in un senso, l'altra metà nell'opposto, i momenti si annullano ma la postura cambia. Effetto geometrico puro.",
+  fact:"Il riflesso di raddrizzamento si completa in <0.1s a 30 cm d'altezza. Cadute da 5° piano sono più sicure del 2°: il corpo ha il tempo di rilassarsi.",
+  vars:[{s:"L",n:"Momento angolare"},{s:"I",n:"Momento inerzia"},{s:"ω",n:"Vel. angolare"},{s:"cost.",n:"Si conserva sempre"}],
+  model:{type:"sphere", labels:["L=cost","I₁ω₁=I₂ω₂","r","massa"]}},
+
 };
 
 const ALIAS={
   "tvmonitor":"tv","sofa":"couch","pottedplant":"potted plant",
   "diningtable":"dining table","cellphone":"cell phone",
-  "sportsball":"sports ball","mobilephone":"cell phone","remote":"tv","monitor":"tv",
+  "sportsball":"sports ball","mobilephone":"cell phone",
+  "remote":"tv","monitor":"tv","person":"person",
 };
 
-// ═══════════════════════════════════════════
-// THREE.JS
-// ═══════════════════════════════════════════
-let renderer, scene, camera, animId, wireShowing = false;
-const ts = {active:false,last:{x:0,y:0},pinch:0,rx:0.3,ry:0.4,zoom:1.0};
+// ══════════════════════════════════════════════════════════
+//  THREE.JS — engine 3D
+// ══════════════════════════════════════════════════════════
+let R,S,C,AID, wireOn=false;
+// Touch state
+const TS={a:false,lx:0,ly:0,pd:0,rx:.28,ry:.5,z:1.0};
 
 function initThree(){
-  const canvas = document.getElementById('threeCanvas');
-  const wrap   = document.getElementById('threeWrap');
-  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  resizeThree();
-  scene  = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(45, wrap.clientWidth/wrap.clientHeight, 0.01, 100);
-  camera.position.set(0, 0, 3);
-  // Touch events
-  const el = wrap;
-  el.addEventListener('touchstart', e=>{
-    e.preventDefault(); ts.active=true;
-    if(e.touches.length===1) ts.last={x:e.touches[0].clientX,y:e.touches[0].clientY};
-    else ts.pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-  },{passive:false});
-  el.addEventListener('touchmove', e=>{
-    e.preventDefault();
-    if(e.touches.length===1){
-      ts.ry+=(e.touches[0].clientX-ts.last.x)*0.012;
-      ts.rx+=(e.touches[0].clientY-ts.last.y)*0.012;
-      ts.last={x:e.touches[0].clientX,y:e.touches[0].clientY};
-    } else {
-      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-      ts.zoom*=d/ts.pinch; ts.zoom=Math.max(.3,Math.min(4,ts.zoom)); ts.pinch=d;
-    }
-  },{passive:false});
-  el.addEventListener('touchend',()=>{ts.active=false;});
-  let md=false,ml={x:0,y:0};
-  el.addEventListener('mousedown',e=>{md=true;ml={x:e.clientX,y:e.clientY};ts.active=true;});
-  window.addEventListener('mousemove',e=>{if(!md)return;ts.ry+=(e.clientX-ml.x)*.008;ts.rx+=(e.clientY-ml.y)*.008;ml={x:e.clientX,y:e.clientY};});
-  window.addEventListener('mouseup',()=>{md=false;ts.active=false;});
-  el.addEventListener('wheel',e=>{ts.zoom*=e.deltaY>0?.93:1.07;ts.zoom=Math.max(.3,Math.min(4,ts.zoom));});
+  const cv=document.getElementById('tCanvas');
+  const wr=document.getElementById('tWrap');
+  R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+  R.setPixelRatio(Math.min(devicePixelRatio,2));
+  R.setSize(wr.clientWidth,wr.clientHeight);
+  S=new THREE.Scene();
+  C=new THREE.PerspectiveCamera(44,wr.clientWidth/wr.clientHeight,.01,100);
+  C.position.z=3.2;
+  setupTouch(wr);
 }
 
 function resizeThree(){
-  const w=document.getElementById('threeWrap');
-  if(!renderer||!w) return;
-  renderer.setSize(w.clientWidth, w.clientHeight);
-  if(camera){camera.aspect=w.clientWidth/w.clientHeight;camera.updateProjectionMatrix();}
+  const wr=document.getElementById('tWrap');
+  if(!R||!wr) return;
+  R.setSize(wr.clientWidth,wr.clientHeight);
+  if(C){C.aspect=wr.clientWidth/wr.clientHeight;C.updateProjectionMatrix();}
 }
 
-function buildModel(data){
-  if(animId) cancelAnimationFrame(animId);
-  if(!scene) return;
-  scene.clear();
-  // Lights
-  scene.add(new THREE.AmbientLight(0xffffff,0.55));
-  const dl=new THREE.DirectionalLight(0x5AC8FA,1.3); dl.position.set(2,3,4); scene.add(dl);
-  const dl2=new THREE.DirectionalLight(0xffffff,0.35); dl2.position.set(-2,-1,-2); scene.add(dl2);
+function setupTouch(el){
+  el.addEventListener('touchstart',e=>{
+    e.preventDefault();TS.a=true;
+    if(e.touches.length===1){TS.lx=e.touches[0].clientX;TS.ly=e.touches[0].clientY;}
+    else TS.pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  },{passive:false});
+  el.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    if(e.touches.length===1){
+      TS.ry+=(e.touches[0].clientX-TS.lx)*.013;
+      TS.rx+=(e.touches[0].clientY-TS.ly)*.013;
+      TS.lx=e.touches[0].clientX;TS.ly=e.touches[0].clientY;
+    }else{
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      TS.z*=d/TS.pd;TS.z=Math.max(.3,Math.min(4,TS.z));TS.pd=d;
+    }
+  },{passive:false});
+  el.addEventListener('touchend',()=>TS.a=false);
+  let md=false,mlx=0,mly=0;
+  el.addEventListener('mousedown',e=>{md=true;mlx=e.clientX;mly=e.clientY;TS.a=true;});
+  window.addEventListener('mousemove',e=>{if(!md)return;
+    TS.ry+=(e.clientX-mlx)*.009;TS.rx+=(e.clientY-mly)*.009;mlx=e.clientX;mly=e.clientY;});
+  window.addEventListener('mouseup',()=>{md=false;TS.a=false;});
+  el.addEventListener('wheel',e=>{TS.z*=e.deltaY>0?.92:1.08;TS.z=Math.max(.3,Math.min(4,TS.z));},{passive:true});
+}
 
-  const c=data.model.color||0x5AC8FA;
-  const matFill=new THREE.MeshPhongMaterial({color:c,transparent:true,opacity:0.15,side:THREE.DoubleSide,depthWrite:false});
-  const matWire=new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:.80});
-  const matEdge=new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.90});
+function resetCam(){TS.rx=.28;TS.ry=.5;TS.z=1;}
+function toggleWire(){
+  wireOn=!wireOn;
+  S.traverse(o=>{
+    if(o.isMesh&&o.material&&!o.material.wireframe)
+      o.material.opacity=wireOn?0:.14;
+  });
+}
 
-  let geo;
-  const m=data.model;
+// Shared materials factory
+function mats(c){
+  return {
+    fill:new THREE.MeshPhongMaterial({color:c,transparent:true,opacity:.14,side:THREE.DoubleSide,depthWrite:false}),
+    wire:new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:.80}),
+    edge:new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.88}),
+    solid:new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.9}),
+  };
+}
+function addMesh(geo,mt){
+  S.add(new THREE.Mesh(geo,mt.fill));
+  S.add(new THREE.Mesh(geo,mt.wire));
+  S.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,18),mt.edge));
+}
+function addAxes(){
+  [[1,0,0,0xff4444],[0,1,0,0x44cc44],[0,0,1,0x4477ff]].forEach(([x,y,z,col])=>{
+    const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(x*1.4,y*1.4,z*1.4)]);
+    S.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.28})));
+  });
+}
+function addLine3(pts,col){
+  S.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.88})));
+}
+function clearScene(){
+  if(AID) cancelAnimationFrame(AID);
+  S.clear();
+  S.add(new THREE.AmbientLight(0xffffff,.55));
+  const d=new THREE.DirectionalLight(0x5AC8FA,1.3);d.position.set(2,3,4);S.add(d);
+  const d2=new THREE.DirectionalLight(0xffffff,.35);d2.position.set(-2,-1,-2);S.add(d2);
+}
 
-  if(m.type==='sphere')       geo=new THREE.SphereGeometry(.9,48,32);
-  else if(m.type==='cylinder') geo=new THREE.CylinderGeometry(.5,.6,1.8,48,1,false);
-  else if(m.type==='box')      geo=new THREE.BoxGeometry(1.8,1.1,1.1);
-  else if(m.type==='torus')    geo=new THREE.TorusGeometry(.8,.18,18,80);
-  else if(m.type==='paraboloid') geo=makeParaboloid(.8,.7);
-  else if(m.type==='lathe')    geo=makeLathe();
-  else if(m.type==='pendulum') {buildPendulum(c); return;}
-  else if(m.type==='refraction'){buildRefraction(c); return;}
-  else                         geo=new THREE.SphereGeometry(.9,48,32);
+// ── MODEL BUILDERS ──────────────────────────────────────────
 
-  scene.add(new THREE.Mesh(geo,matFill));
-  scene.add(new THREE.Mesh(geo,matWire));
-  scene.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,18),matEdge));
+function build_sphere(c){
+  const mt=mats(c);
+  addMesh(new THREE.SphereGeometry(.95,48,32),mt);
+  // Equatorial ring
+  const eq=new THREE.TorusGeometry(.95,.008,8,80);
+  S.add(new THREE.Mesh(eq,new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.7})));
+  // Meridian
+  const mer=new THREE.TorusGeometry(.95,.008,8,80);
+  mer.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.PI/2));
+  S.add(new THREE.Mesh(mer,new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.5})));
   addAxes();
-  addDimLabels(data);
-  ts.rx=.3; ts.ry=.4; ts.zoom=1; wireShowing=false;
-  startLoop();
 }
 
-function makeParaboloid(r,h){
+function build_cylinder(c){
+  const mt=mats(c);
+  addMesh(new THREE.CylinderGeometry(.55,.55,1.8,48,1,false),mt);
+  // Top + bottom circles with labels
+  [-.9,.9].forEach(y=>{
+    const ring=new THREE.TorusGeometry(.55,.01,8,60);
+    ring.applyMatrix4(new THREE.Matrix4().makeTranslation(0,y,0));
+    S.add(new THREE.Mesh(ring,new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.7})));
+  });
+  addAxes();
+}
+
+function build_box(c,w,h,d){
+  const mt=mats(c);
+  addMesh(new THREE.BoxGeometry(w,h,d),mt);
+  addAxes();
+}
+
+function build_flat_box(c){
+  build_box(c,1.9,1.15,.12);
+}
+function build_box_chair(c){
+  const mt=mats(c);
+  // seat
+  addMesh(new THREE.BoxGeometry(1.2,.12,1.2),mt);
+  // back
+  const back=new THREE.BoxGeometry(1.2,1.2,.08);
+  back.applyMatrix4(new THREE.Matrix4().makeTranslation(0,.66,-.56));
+  S.add(new THREE.Mesh(back,mt.fill));
+  S.add(new THREE.Mesh(back,mt.wire));
+  S.add(new THREE.LineSegments(new THREE.EdgesGeometry(back,18),mt.edge));
+  // 4 legs
+  [[.5,-.8,.5],[-.5,-.8,.5],[.5,-.8,-.5],[-.5,-.8,-.5]].forEach(([x,y,z])=>{
+    const lg=new THREE.CylinderGeometry(.04,.04,.9,8);
+    lg.applyMatrix4(new THREE.Matrix4().makeTranslation(x,y,z));
+    S.add(new THREE.Mesh(lg,mt.wire));
+    S.add(new THREE.LineSegments(new THREE.EdgesGeometry(lg,10),mt.edge));
+  });
+  addAxes();
+}
+function build_box_table(c){
+  const mt=mats(c);
+  // tabletop
+  addMesh(new THREE.BoxGeometry(2,.1,1.2),mt);
+  // 4 legs
+  [[.85,-.9,.5],[-.85,-.9,.5],[.85,-.9,-.5],[-.85,-.9,-.5]].forEach(([x,y,z])=>{
+    const lg=new THREE.BoxGeometry(.08,1.6,.08);
+    lg.applyMatrix4(new THREE.Matrix4().makeTranslation(x,y,z));
+    S.add(new THREE.Mesh(lg,mt.wire));
+    S.add(new THREE.LineSegments(new THREE.EdgesGeometry(lg,10),mt.edge));
+  });
+  addAxes();
+}
+function build_box_book(c){build_box(c,1.4,1.8,.18);}
+function build_box_door(c){build_box(c,.08,2.1,1.2);}
+function build_box_tall(c){build_box(c,1.0,2.0,.95);}
+function build_box_car(c){
+  const mt=mats(c);
+  // body
+  addMesh(new THREE.BoxGeometry(2,.7,1),mt);
+  // roof
+  const roof=new THREE.BoxGeometry(1.2,.5,.9);
+  roof.applyMatrix4(new THREE.Matrix4().makeTranslation(0,.6,0));
+  S.add(new THREE.Mesh(roof,mt.fill));
+  S.add(new THREE.Mesh(roof,mt.wire));
+  S.add(new THREE.LineSegments(new THREE.EdgesGeometry(roof,10),mt.edge));
+  addAxes();
+}
+
+function build_torus(c){
+  const mt=mats(c);
+  addMesh(new THREE.TorusGeometry(.85,.16,18,80),mt);
+  addAxes();
+}
+
+function build_paraboloid(c){
   const pts=[];
-  for(let i=0;i<=24;i++){const t=i/24; pts.push(new THREE.Vector2(r*t*t,h*t-h/2));}
-  return new THREE.LatheGeometry(pts,48);
-}
-function makeLathe(){
-  return new THREE.LatheGeometry([
-    new THREE.Vector2(0,-1.1),new THREE.Vector2(.32,-.9),new THREE.Vector2(.52,-.4),
-    new THREE.Vector2(.46,.1),new THREE.Vector2(.38,.5),new THREE.Vector2(.48,.88),
-    new THREE.Vector2(.42,1.0),new THREE.Vector2(.18,1.15)
-  ],48);
+  for(let i=0;i<=28;i++){const t=i/28;pts.push(new THREE.Vector2(.88*t*t,.95*t-.48));}
+  const mt=mats(c);
+  addMesh(new THREE.LatheGeometry(pts,48),mt);
+  addAxes();
 }
 
-function buildPendulum(c){
-  const lm=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.6});
-  // string
-  const sg=new THREE.CylinderGeometry(.012,.012,1.8,8);
-  const str=new THREE.Mesh(sg,lm); str.position.y=0; scene.add(str);
-  // bob
-  const bg=new THREE.SphereGeometry(.22,32,20);
-  scene.add(new THREE.Mesh(bg,new THREE.MeshPhongMaterial({color:c,transparent:true,opacity:.18,side:THREE.DoubleSide})));
-  scene.add(new THREE.Mesh(bg,new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:.75})));
-  const bob2=scene.children[scene.children.length-1];
-  bob2.position.y=-1.0;
-  scene.children[scene.children.length-2].position.y=-1.0;
+function build_lathe(c){
+  const pts=[
+    new THREE.Vector2(0,-1.1),new THREE.Vector2(.3,-.9),new THREE.Vector2(.52,-.4),
+    new THREE.Vector2(.45,.05),new THREE.Vector2(.36,.5),new THREE.Vector2(.46,.85),
+    new THREE.Vector2(.4,1.0),new THREE.Vector2(.16,1.14),
+  ];
+  const mt=mats(c);
+  addMesh(new THREE.LatheGeometry(pts,48),mt);
+  addAxes();
+}
+
+// Human figure — head(sphere)+torso(cylinder)+arms+legs
+function build_human(c){
+  const mt=mats(c);
+  // head
+  const head=new THREE.SphereGeometry(.22,24,18);
+  head.applyMatrix4(new THREE.Matrix4().makeTranslation(0,1.1,0));
+  addMesh(head,mt);
+  // torso
+  const torso=new THREE.CylinderGeometry(.22,.28,.7,24,1);
+  torso.applyMatrix4(new THREE.Matrix4().makeTranslation(0,.5,0));
+  addMesh(torso,mt);
+  // pelvis
+  const pelvis=new THREE.CylinderGeometry(.28,.22,.3,24,1);
+  pelvis.applyMatrix4(new THREE.Matrix4().makeTranslation(0,.02,0));
+  addMesh(pelvis,mt);
+  // left leg
+  const ll=new THREE.CylinderGeometry(.1,.1,.85,16,1);
+  ll.applyMatrix4(new THREE.Matrix4().makeTranslation(-.18,-.65,0));
+  addMesh(ll,mt);
+  // right leg
+  const rl=new THREE.CylinderGeometry(.1,.1,.85,16,1);
+  rl.applyMatrix4(new THREE.Matrix4().makeTranslation(.18,-.65,0));
+  addMesh(rl,mt);
+  // left arm
+  const la=new THREE.CylinderGeometry(.07,.07,.65,12,1);
+  la.applyMatrix4(new THREE.Matrix4().makeRotationZ(.4).multiply(new THREE.Matrix4().makeTranslation(-.45,.45,0)));
+  addMesh(la,mt);
+  // right arm
+  const ra=new THREE.CylinderGeometry(.07,.07,.65,12,1);
+  ra.applyMatrix4(new THREE.Matrix4().makeRotationZ(-.4).multiply(new THREE.Matrix4().makeTranslation(.45,.45,0)));
+  addMesh(ra,mt);
+  // floor line
+  addLine3([new THREE.Vector3(-1,-1.08,0),new THREE.Vector3(1,-1.08,0)],0xaaaaaa);
+  // force vectors
+  addLine3([new THREE.Vector3(0,.5,0),new THREE.Vector3(0,-1.08,0)],0xff4444); // P down
+  addLine3([new THREE.Vector3(0,-1.08,0),new THREE.Vector3(0,-.4,0)],0x44cc44); // N up
+  addAxes();
+}
+
+function build_pendulum(c){
+  const mt=mats(c);
   // pivot
-  const pg=new THREE.SphereGeometry(.07,16,12);
-  const piv=new THREE.Mesh(pg,new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.9}));
-  piv.position.y=.95; scene.add(piv);
+  S.add(new THREE.Mesh(new THREE.SphereGeometry(.07,16,12),mt.solid));
+  // string (line, animated)
+  // bob
+  const bobG=new THREE.SphereGeometry(.22,28,20);
+  const bobFill=new THREE.Mesh(bobG,mt.fill);
+  const bobWire=new THREE.Mesh(bobG,mt.wire);
+  S.add(bobFill);S.add(bobWire);
+
+  const piv=S.children[S.children.length-3]; // the pivot sphere
+  piv.position.set(0,.98,0);
+
   addAxes();
   let t=0;
+  const strGeo=new THREE.BufferGeometry();
+  const strVerts=new Float32Array(6);
+  strGeo.setAttribute('position',new THREE.BufferAttribute(strVerts,3));
+  const strLine=new THREE.Line(strGeo,new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.65}));
+  S.add(strLine);
+
   function loop(){
-    animId=requestAnimationFrame(loop);
+    AID=requestAnimationFrame(loop);
     t+=.022; const a=.42*Math.sin(t);
-    str.rotation.z=a;
-    const bx=1.85*Math.sin(a), by=-1.0*Math.cos(a);
-    scene.children.forEach((o,i)=>{
-      if(i===1||i===2){o.position.x=bx;o.position.y=by;}
-    });
-    if(!ts.active) ts.ry+=.004;
-    scene.rotation.y=ts.ry; scene.rotation.x=ts.rx;
-    camera.position.z=3/ts.zoom; camera.updateProjectionMatrix();
-    renderer.render(scene,camera);
+    const bx=1.82*Math.sin(a), by=.98-1.82*(1-Math.cos(a));
+    bobFill.position.set(bx,by-.22,0);
+    bobWire.position.set(bx,by-.22,0);
+    strVerts[0]=0;strVerts[1]=.98;strVerts[2]=0;
+    strVerts[3]=bx;strVerts[4]=by-.0;strVerts[5]=0;
+    strGeo.attributes.position.needsUpdate=true;
+    if(!TS.a) TS.ry+=.004;
+    S.rotation.y=TS.ry; S.rotation.x=TS.rx;
+    C.position.z=3.2/TS.z; C.updateProjectionMatrix();
+    R.render(S,C);
+  }
+  loop();
+  return true; // signals own loop
+}
+
+function build_refraction(c){
+  const slabG=new THREE.BoxGeometry(2.4,.5,.08);
+  S.add(new THREE.Mesh(slabG,new THREE.MeshPhongMaterial({color:0xaaddff,transparent:true,opacity:.13,side:THREE.DoubleSide})));
+  S.add(new THREE.Mesh(slabG,new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:.38})));
+  addLine3([new THREE.Vector3(-1.1,.88,0),new THREE.Vector3(0,.25,0)],0xffaa00);
+  addLine3([new THREE.Vector3(0,.25,0),new THREE.Vector3(.52,-.25,0)],c);
+  addLine3([new THREE.Vector3(.52,-.25,0),new THREE.Vector3(1.1,-.88,0)],0xffaa00);
+  // dashed normal
+  const dg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,.85,0),new THREE.Vector3(0,-.85,0)]);
+  const dl2=new THREE.Line(dg,new THREE.LineDashedMaterial({color:0xffffff,dashSize:.07,gapSize:.05,transparent:true,opacity:.4}));
+  dl2.computeLineDistances();S.add(dl2);
+  // angle arcs labels via HTML only
+  addAxes();
+}
+
+// ── Main buildModel dispatcher
+function buildModel(data){
+  clearScene();
+  wireOn=false;
+  TS.rx=.28;TS.ry=.5;TS.z=1.0;
+  const c=0x5AC8FA;
+  const t=data.model.type;
+  let hasOwnLoop=false;
+  if(t==='sphere')       build_sphere(c);
+  else if(t==='cylinder')build_cylinder(c);
+  else if(t==='flat_box')build_flat_box(c);
+  else if(t==='box_chair')build_box_chair(c);
+  else if(t==='box_table')build_box_table(c);
+  else if(t==='box_book')build_box_book(c);
+  else if(t==='box_door')build_box_door(c);
+  else if(t==='box_tall')build_box_tall(c);
+  else if(t==='box_car')build_box_car(c);
+  else if(t==='box')     build_box(c,1.6,1.0,0.8);
+  else if(t==='torus')   build_torus(c);
+  else if(t==='paraboloid') build_paraboloid(c);
+  else if(t==='lathe')   build_lathe(c);
+  else if(t==='human')   build_human(c);
+  else if(t==='pendulum'){ hasOwnLoop=build_pendulum(c); }
+  else if(t==='refraction') build_refraction(c);
+  else build_sphere(c);
+
+  injectDimLabels(data);
+  if(!hasOwnLoop) startRenderLoop();
+}
+
+function startRenderLoop(){
+  function loop(){
+    AID=requestAnimationFrame(loop);
+    if(!TS.a) TS.ry+=.005;
+    S.rotation.y=TS.ry; S.rotation.x=TS.rx;
+    C.position.z=3.2/TS.z; C.updateProjectionMatrix();
+    R.render(S,C);
   }
   loop();
 }
 
-function buildRefraction(c){
-  // glass slab
-  const sg=new THREE.BoxGeometry(2.4,.55,.1);
-  scene.add(new THREE.Mesh(sg,new THREE.MeshPhongMaterial({color:0xaaddff,transparent:true,opacity:.14,side:THREE.DoubleSide})));
-  scene.add(new THREE.Mesh(sg,new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:.4})));
-  // rays
-  addLine([new THREE.Vector3(-1.1,.9,0),new THREE.Vector3(0,.28,0)],0xffaa00);
-  addLine([new THREE.Vector3(0,.28,0),new THREE.Vector3(.55,-.28,0)],c);
-  addLine([new THREE.Vector3(.55,-.28,0),new THREE.Vector3(1.1,-.9,0)],0xffaa00);
-  addDash([new THREE.Vector3(0,.85,0),new THREE.Vector3(0,-.85,0)],0xffffff);
-  addAxes();
-  startLoop();
-}
-
-function addLine(pts,col){
-  const g=new THREE.BufferGeometry().setFromPoints(pts);
-  scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.88,linewidth:2})));
-}
-function addDash(pts,col){
-  const g=new THREE.BufferGeometry().setFromPoints(pts);
-  const m=new THREE.LineDashedMaterial({color:col,dashSize:.08,gapSize:.06,transparent:true,opacity:.45});
-  const l=new THREE.Line(g,m); l.computeLineDistances(); scene.add(l);
-}
-
-function addAxes(){
-  [[1,0,0,0xff4444],[0,1,0,0x44cc44],[0,0,1,0x4488ff]].forEach(([x,y,z,col])=>{
-    const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(x*1.3,y*1.3,z*1.3)]);
-    scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.32})));
-  });
-}
-
-function addDimLabels(data){
-  // We'll inject HTML labels positioned over the 3D area
-  const wrap=document.getElementById('threeWrap');
-  document.querySelectorAll('.dlabel').forEach(e=>e.remove());
-  const positions=[
-    {t:'8%',l:'8%'},{t:'8%',r:'8%'},{b:'36px',l:'8%'},{b:'36px',r:'8%'}
+function injectDimLabels(data){
+  document.querySelectorAll('.dl').forEach(e=>e.remove());
+  const wr=document.getElementById('tWrap');
+  const pos=[
+    {top:'10px',left:'10px'},{top:'10px',right:'10px'},
+    {bottom:'46px',left:'10px'},{bottom:'46px',right:'10px'},
   ];
-  (data.model.formulas||[]).forEach((txt,i)=>{
+  (data.model.labels||[]).forEach((txt,i)=>{
     if(i>3) return;
     const el=document.createElement('div');
-    el.className='dlabel';
+    el.className='dl';
     el.textContent=txt;
-    Object.assign(el.style, positions[i]||{t:'50%',l:'50%'});
-    el.style.position='absolute';
-    wrap.appendChild(el);
+    Object.assign(el.style,{position:'absolute',...pos[i]});
+    wr.appendChild(el);
   });
 }
 
-function startLoop(){
-  function loop(){
-    animId=requestAnimationFrame(loop);
-    if(!ts.active) ts.ry+=.005;
-    scene.rotation.y=ts.ry; scene.rotation.x=ts.rx;
-    camera.position.z=3/ts.zoom; camera.updateProjectionMatrix();
-    renderer.render(scene,camera);
-  }
-  loop();
-}
+// ══════════════════════════════════════════════════════════
+//  DETECTION — un solo oggetto "vincitore" alla volta
+// ══════════════════════════════════════════════════════════
+let tfModel=null;
+let curDet=null, secDets=[];
+let detecting=false;
 
-function resetCam(){ts.rx=.3;ts.ry=.4;ts.zoom=1;}
-function toggleWire(){
-  wireShowing=!wireShowing;
-  scene.traverse(o=>{
-    if(o.isMesh&&!o.material.wireframe){
-      o.material.opacity=wireShowing?0:.15;
-    }
-  });
-}
-
-// ═══════════════════════════════════════════
-// DETECTION
-// ═══════════════════════════════════════════
-let tfModel=null, detections=[];
 const video=document.getElementById('video');
-const cvD=document.getElementById('cvDetect');
-const ctxD=cvD.getContext('2d');
+const cvD=document.getElementById('cvD');
+const ctx=cvD.getContext('2d');
 
 async function init(){
-  document.getElementById('permScreen').classList.add('gone');
-  setStatus("Avvio fotocamera…"); setLoad(true,0);
+  document.getElementById('perm').classList.add('gone');
+  chip('Avvio fotocamera…'); loader(true,0);
+
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
@@ -650,44 +871,46 @@ async function init(){
     await new Promise(r=>video.onloadedmetadata=r);
     resizeCv();
   }catch(e){
-    setStatus("Fotocamera non disponibile"); setLoad(true,100);
-    setTimeout(()=>setLoad(false),600); startDemo(); return;
+    chip('Fotocamera non disponibile'); loader(true,100);
+    setTimeout(()=>loader(false),700); startDemo(); return;
   }
-  setStatus("Avvio rilevamento…"); setLoad(true,30);
+
+  chip('Carico il modello…'); loader(true,30);
   try{
     tfModel=await cocoSsd.load({base:'mobilenet_v2'});
-    setLoad(true,90);
+    loader(true,92);
   }catch(e){
-    setStatus("Rilevamento non disponibile"); setLoad(true,100);
-    setTimeout(()=>setLoad(false),600); startDemo(); return;
+    chip('Modello non disponibile'); loader(true,100);
+    setTimeout(()=>loader(false),700); startDemo(); return;
   }
-  setLoad(true,100); setTimeout(()=>setLoad(false),500);
-  setStatus("Pronto — punta il dispositivo");
-  setTimeout(()=>{document.getElementById('statusChip').style.opacity='0';},3000);
-  initThree(); startLoop2();
+  loader(true,100); setTimeout(()=>loader(false),600);
+  chip('Pronto — punta il dispositivo');
+  setTimeout(()=>{document.getElementById('chip').style.opacity='0';},3500);
+  initThree();
+  detectionLoop();
 }
 
 window.addEventListener('resize',()=>{resizeCv();resizeThree();});
-function resizeCv(){
-  cvD.width=innerWidth; cvD.height=innerHeight;
-}
+function resizeCv(){cvD.width=innerWidth;cvD.height=innerHeight;}
 
-function startLoop2(){
-  let last=0;
-  async function tick(ts){
-    requestAnimationFrame(tick);
-    if(ts-last<620) return; last=ts;
-    if(video.readyState<2) return;
+async function detectionLoop(){
+  while(true){
+    await sleep(700);
+    if(video.readyState<2||detecting) continue;
+    detecting=true;
     try{
-      const preds=await tfModel.detect(video,10,0.28);
+      // Threshold 0.45 — solo rilievi affidabili
+      const preds=await tfModel.detect(video,6,0.45);
       process(preds);
     }catch(_){}
+    detecting=false;
   }
-  requestAnimationFrame(tick);
 }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function process(preds){
-  const seen=new Set(), found=[];
+  const found=[];
+  const seen=new Set();
   for(const p of preds){
     let cls=p.class.toLowerCase();
     if(ALIAS[cls]) cls=ALIAS[cls];
@@ -698,162 +921,189 @@ function process(preds){
     found.push({cls,score:p.score,bbox:p.bbox,data});
   }
   found.sort((a,b)=>b.score-a.score);
-  drawBoxes(found);
-  reconcile(found);
+
+  // PRIMARY = highest score
+  const primary=found[0]||null;
+  // SECONDARY = rest (max 3)
+  const secondary=found.slice(1,4);
+
+  drawBoxes(found, primary);
+  updatePills(primary, secondary);
 }
 
-function drawBoxes(found){
-  ctxD.clearRect(0,0,cvD.width,cvD.height);
+function drawBoxes(found, primary){
+  ctx.clearRect(0,0,cvD.width,cvD.height);
   if(!video.videoWidth) return;
-  const sx=cvD.width/video.videoWidth, sy=cvD.height/video.videoHeight;
-  for(const det of found){
-    const [bx,by,bw,bh]=det.bbox;
-    const x=bx*sx, y=by*sy, w=bw*sx, h=bh*sy, r=12;
-    const pct=det.score;
-    const stroke=pct>.80?'rgba(90,200,250,.92)':pct>.55?'rgba(255,214,10,.88)':'rgba(255,255,255,.72)';
-    // box
-    ctxD.shadowColor=stroke; ctxD.shadowBlur=12;
-    ctxD.beginPath();
-    ctxD.moveTo(x+r,y);ctxD.lineTo(x+w-r,y);ctxD.quadraticCurveTo(x+w,y,x+w,y+r);
-    ctxD.lineTo(x+w,y+h-r);ctxD.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-    ctxD.lineTo(x+r,y+h);ctxD.quadraticCurveTo(x,y+h,x,y+h-r);
-    ctxD.lineTo(x,y+r);ctxD.quadraticCurveTo(x,y,x+r,y);ctxD.closePath();
-    ctxD.fillStyle='rgba(90,200,250,.04)'; ctxD.fill();
-    ctxD.strokeStyle=stroke; ctxD.lineWidth=1.8; ctxD.stroke();
-    ctxD.shadowBlur=0;
-    // corner brackets
-    const bl=16; ctxD.strokeStyle=stroke; ctxD.lineWidth=2.4;
-    [[x,y,bl,bl],[x+w,y,-bl,bl],[x,y+h,bl,-bl],[x+w,y+h,-bl,-bl]].forEach(([cx,cy,dx,dy])=>{
-      ctxD.beginPath();ctxD.moveTo(cx+dx,cy);ctxD.lineTo(cx,cy);ctxD.lineTo(cx,cy+dy);ctxD.stroke();
-    });
-    // label
-    const lbl=det.data.icon+' '+det.data.label+'  '+Math.round(pct*100)+'%';
-    ctxD.font='600 12px Inter,-apple-system,sans-serif';
-    const tw=ctxD.measureText(lbl).width;
-    const lw=tw+16,lh=24,lx2=x,ly2=Math.max(4,y-lh-6);
-    ctxD.fillStyle='rgba(8,10,20,.78)';
-    ctxD.beginPath();ctxD.roundRect(lx2,ly2,lw,lh,6);ctxD.fill();
-    ctxD.strokeStyle=stroke;ctxD.lineWidth=.8;ctxD.stroke();
-    ctxD.fillStyle='#fff';ctxD.fillText(lbl,lx2+8,ly2+16);
-    // formula in box
-    if(w>100&&h>70){
-      ctxD.font='italic 13px Georgia,serif';
-      ctxD.fillStyle='rgba(90,200,250,.55)';
-      ctxD.textAlign='center';
-      ctxD.fillText(det.data.main,x+w/2,y+h/2+5);
-      ctxD.textAlign='left';
-    }
-  }
-}
+  const sx=cvD.width/video.videoWidth;
+  const sy=cvD.height/video.videoHeight;
 
-function reconcile(found){
-  const n=found.map(d=>d.cls).join('|');
-  const c=detections.map(d=>d.cls).join('|');
-  if(n===c) return;
-  detections=found;
-  const list=document.getElementById('pillList');
-  list.innerHTML='';
-  found.forEach((det,i)=>{
-    const pill=document.createElement('div');
-    pill.className='pill';
-    pill.style.animationDelay=(i*50)+'ms';
-    pill.innerHTML=`
-      <span class="pill-icon">${det.data.icon}</span>
-      <span class="pill-label">${det.data.label}</span>
-      <span class="pill-3d">3D</span>
-      <span class="pill-conf">${Math.round(det.score*100)}%</span>`;
-    pill.onclick=()=>openViewer(det.data,Math.round(det.score*100));
-    list.appendChild(pill);
+  found.forEach((det,idx)=>{
+    const isPrimary=idx===0;
+    const [bx,by,bw,bh]=det.bbox;
+    const x=bx*sx,y=by*sy,w=bw*sx,h=bh*sy,rr=12;
+    const stroke=isPrimary?'rgba(90,200,250,.95)':'rgba(255,255,255,.45)';
+    const lw=isPrimary?2.2:1.2;
+
+    ctx.shadowColor=isPrimary?stroke:'transparent';
+    ctx.shadowBlur=isPrimary?14:0;
+
+    // rounded rect box
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);ctx.lineTo(x+w-rr,y);ctx.quadraticCurveTo(x+w,y,x+w,y+rr);
+    ctx.lineTo(x+w,y+h-rr);ctx.quadraticCurveTo(x+w,y+h,x+w-rr,y+h);
+    ctx.lineTo(x+rr,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-rr);
+    ctx.lineTo(x,y+rr);ctx.quadraticCurveTo(x,y,x+rr,y);ctx.closePath();
+    ctx.fillStyle=isPrimary?'rgba(90,200,250,.05)':'rgba(255,255,255,.02)';
+    ctx.fill();
+    ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();
+    ctx.shadowBlur=0;
+
+    if(isPrimary){
+      // corner brackets
+      const bl=18;ctx.strokeStyle=stroke;ctx.lineWidth=2.8;
+      [[x,y,bl,bl],[x+w,y,-bl,bl],[x,y+h,bl,-bl],[x+w,y+h,-bl,-bl]].forEach(([cx,cy,dx,dy])=>{
+        ctx.beginPath();ctx.moveTo(cx+dx,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+dy);ctx.stroke();
+      });
+      // formula overlay
+      if(w>110&&h>80){
+        ctx.font='italic 14px Georgia,serif';
+        ctx.fillStyle='rgba(90,200,250,.65)';
+        ctx.textAlign='center';
+        ctx.fillText(det.data.main,x+w/2,y+h/2+6);
+        ctx.textAlign='left';
+      }
+    }
+
+    // label pill
+    const lbl=det.data.icon+' '+det.data.label+(isPrimary?'  '+Math.round(det.score*100)+'%':'');
+    ctx.font=(isPrimary?'600':'500')+' 12px Inter,-apple-system,sans-serif';
+    const tw=ctx.measureText(lbl).width;
+    const lw2=tw+14,lh2=22,lx2=x,ly2=Math.max(4,y-lh2-5);
+    ctx.fillStyle=isPrimary?'rgba(10,132,255,.85)':'rgba(0,0,0,.6)';
+    ctx.beginPath();ctx.roundRect(lx2,ly2,lw2,lh2,6);ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillText(lbl,lx2+7,ly2+15);
   });
 }
 
-// ═══════════════════════════════════════════
-// VIEWER
-// ═══════════════════════════════════════════
+let _curData=null;
+
+function updatePills(primary, secondary){
+  const mp=document.getElementById('mainPill');
+  const sp=document.getElementById('secPills');
+
+  if(!primary){
+    mp.classList.remove('visible');
+    sp.innerHTML='';
+    _curData=null;
+    return;
+  }
+
+  // Animate only if changed
+  if(!_curData||_curData.label!==primary.data.label){
+    _curData=primary.data;
+    mp.style.animation='none';
+    requestAnimationFrame(()=>{mp.style.animation='';});
+  }
+  document.getElementById('pillIcon').textContent=primary.data.icon;
+  document.getElementById('pillLabel').textContent=primary.data.label;
+  document.getElementById('pillConf').textContent=Math.round(primary.score*100)+'%';
+  mp.classList.add('visible');
+
+  // Secondary pills
+  sp.innerHTML='';
+  secondary.forEach(det=>{
+    const el=document.createElement('div');
+    el.className='spill';
+    el.innerHTML=`${det.data.icon} ${det.data.label}`;
+    el.onclick=()=>openViewer(det.data,Math.round(det.score*100));
+    sp.appendChild(el);
+  });
+}
+
+function openFromPill(){
+  if(_curData) openViewer(_curData, parseInt(document.getElementById('pillConf').textContent));
+}
+
+// ══════════════════════════════════════════════════════════
+//  VIEWER
+// ══════════════════════════════════════════════════════════
 function openViewer(data,conf){
-  document.querySelectorAll('.pill').forEach(p=>
-    p.classList.toggle('selected',p.querySelector('.pill-label')?.textContent===data.label));
-  // Build 3D
-  if(!renderer) initThree();
+  if(!R) initThree();
   buildModel(data);
-  // Sheet
-  document.getElementById('sheetBody').innerHTML=`
-    <div class="stag">${data.subject}</div>
-    <div class="sname">${data.icon}&ensp;${data.label}</div>
-    <div class="stagline">${data.tagline}</div>
-    ${conf?`<div class="cbadge"><span class="cdot"></span>Rilevato con ${conf}% di accuratezza</div>`:''}
-    <div class="fblock">
-      <div class="fmain">${data.main}</div>
-      <div class="falt">${data.alt}</div>
-    </div>
-    <div class="sdiv"></div>
-    <div class="dtitle">Spiegazione</div>
-    <div class="sdesc">${data.desc}</div>
-    ${data.fact?`<div class="ffact"><div class="fftext"><strong>💡 Lo sapevi?</strong>&nbsp;${data.fact}</div></div>`:''}
-    <div class="vtitle">Variabili</div>
-    <div class="vgrid">${data.vars.map(v=>`
-      <div class="vitem"><div class="vsym">${v.s}</div><div class="vname">${v.n}</div></div>`).join('')}
-    </div>
-    <div class="lbtn">→ Apri la lezione nell'app</div>
-  `;
+  document.getElementById('sBody').innerHTML=sheetHTML(data,conf);
   document.getElementById('viewer').classList.add('open');
-  setTimeout(()=>{document.getElementById('arHint').style.opacity='0';},4000);
+  document.getElementById('arHint').style.opacity='1';
+  setTimeout(()=>{document.getElementById('arHint').style.opacity='0';},4500);
 }
 
 function closeViewer(){
   document.getElementById('viewer').classList.remove('open');
-  if(animId) cancelAnimationFrame(animId);
-  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('selected'));
-  document.querySelectorAll('.dlabel').forEach(e=>e.remove());
+  if(AID){cancelAnimationFrame(AID);AID=null;}
+  document.querySelectorAll('.dl').forEach(e=>e.remove());
 }
 
-// swipe down
-let ty0=0;
-document.getElementById('viewerPanel').addEventListener('touchstart',e=>{ty0=e.touches[0].clientY;},{passive:true});
-document.getElementById('viewerPanel').addEventListener('touchmove',e=>{
-  if(e.touches[0].clientY-ty0>80) closeViewer();
+function sheetHTML(d,conf){
+  return `
+    <div class="stag">${d.subject}</div>
+    <div class="sname">${d.icon}&ensp;${d.label}</div>
+    <div class="stag2">${d.tagline}</div>
+    ${conf?`<div class="cbadge"><span class="cdot"></span>Rilevato con ${conf}% di accuratezza</div>`:''}
+    <div class="fblock">
+      <div class="fmain">${d.main}</div>
+      <div class="falt">${d.alt}</div>
+    </div>
+    <div class="sdiv"></div>
+    <div class="sttl">Spiegazione</div>
+    <div class="sdesc">${d.desc}</div>
+    ${d.fact?`<div class="sfact"><div class="sftext"><strong>💡 Lo sapevi?</strong> ${d.fact}</div></div>`:''}
+    <div class="sttl">Variabili</div>
+    <div class="vgrid">${d.vars.map(v=>`<div class="vi"><div class="vs">${v.s}</div><div class="vn">${v.n}</div></div>`).join('')}</div>
+    <div class="lbtn">→ Apri la lezione nell'app</div>
+  `;
+}
+
+// swipe to close
+let _ty0=0;
+document.getElementById('vPanel').addEventListener('touchstart',e=>{_ty0=e.touches[0].clientY;},{passive:true});
+document.getElementById('vPanel').addEventListener('touchmove',e=>{
+  if(e.touches[0].clientY-_ty0>85) closeViewer();
 },{passive:true});
 
-// ═══════════════════════════════════════════
-// DEMO MODE
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  DEMO MODE (no camera)
+// ══════════════════════════════════════════════════════════
 function startDemo(){
   initThree();
-  const seq=["lamp","bowl","bottle","clock","sports ball","vase","cup","bicycle"];
+  const seq=["lamp","bowl","bottle","clock","sports ball","vase","cup","bicycle","person","book"];
   let i=0;
   const show=()=>{
     const data=DB[seq[i++%seq.length]];
-    if(!data) return;
     const score=.88+Math.random()*.10;
-    detections=[{cls:seq[(i-1)%seq.length],score,bbox:[60,120,240,220],data}];
-    const list=document.getElementById('pillList');
-    list.innerHTML='';
-    const pill=document.createElement('div');
-    pill.className='pill';
-    pill.innerHTML=`<span class="pill-icon">${data.icon}</span><span class="pill-label">${data.label}</span><span class="pill-3d">3D</span><span class="pill-conf">${Math.round(score*100)}%</span>`;
-    pill.onclick=()=>openViewer(data,Math.round(score*100));
-    list.appendChild(pill);
+    _curData=data;
+    document.getElementById('pillIcon').textContent=data.icon;
+    document.getElementById('pillLabel').textContent=data.label;
+    document.getElementById('pillConf').textContent=Math.round(score*100)+'%';
+    document.getElementById('mainPill').classList.add('visible');
   };
   show(); setInterval(show,5000);
 }
 
-// ═══════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════
 function goBack(){
   if(document.referrer){history.back();return;}
   if(window.history.length>1){history.back();return;}
   const p=window.location.pathname;
-  const par=p.substring(0,p.lastIndexOf('/demo1'));
-  window.location.href=window.location.origin+(par||'')+'/index.html';
+  window.location.href=window.location.origin+p.substring(0,p.lastIndexOf('/demo1'))+'/index.html';
 }
-function setStatus(msg){const el=document.getElementById('statusChip');el.textContent=msg;el.style.opacity='1';}
-function setLoad(on,pct){
-  document.getElementById('loadBar').classList.toggle('on',on);
-  if(pct!==undefined) document.getElementById('loadFill').style.width=pct+'%';
+function chip(msg){const e=document.getElementById('chip');e.textContent=msg;e.style.opacity='1';}
+function loader(on,pct){
+  document.getElementById('lbar').classList.toggle('on',on);
+  if(pct!=null) document.getElementById('lfill').style.width=pct+'%';
 }
 function checkOri(){
-  const l=innerWidth>innerHeight, s=Math.min(innerWidth,innerHeight)<500;
+  const l=innerWidth>innerHeight,s=Math.min(innerWidth,innerHeight)<500;
   document.getElementById('rotOv').classList.toggle('show',l&&s);
 }
 window.addEventListener('resize',checkOri);
